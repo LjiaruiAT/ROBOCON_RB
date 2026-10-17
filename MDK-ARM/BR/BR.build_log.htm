@@ -17,7 +17,7 @@ Library Manager: ArmAr.exe V5.06 update 7 (build 960)
 Hex Converter:   FromElf.exe V5.06 update 7 (build 960)
 CPU DLL:         SARMCM3.DLL V5.43.0.0
 Dialog DLL:      DCM.DLL V1.17.5.0
-Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.3.1.0
+Target DLL:      Segger\JL2CM3.dll V2.99.45.0
 Dialog DLL:      TCM.DLL V1.56.6.0
  
 <h2>Project:</h2>
@@ -27,133 +27,11 @@ Project File Date:  10/15/2026
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 7 (build 960)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'BR'
-compiling data_poll.c...
-..\Remote_control\data_poll.h(40): warning:  #1-D: last line of file ends without a newline
-  #endif
-..\Remote_control\data_poll.c(90): warning:  #1-D: last line of file ends without a newline
-  }
-..\Remote_control\data_poll.c: 2 warnings, 0 errors
-compiling Task_Init.c...
-..\MyTask\Task_Init.h(21): warning:  #1295-D: Deprecated declaration Remote_Analysis - give arg types
-  void Remote_Analysis();
-..\MyTask\Task_Init.c(28): error:  #20: identifier "hw_key_t" is undefined
-  static void Key_Parse(uint32_t key, hw_key_t *out)
-..\MyTask\Task_Init.c(30): error:  #20: identifier "KEY_Right_Switch_Up" is undefined
-      out->Right_Switch_Up     = (key & KEY_Right_Switch_Up)     ? 1 : 0;
-..\MyTask\Task_Init.c(31): error:  #20: identifier "KEY_Right_Switch_Down" is undefined
-      out->Right_Switch_Down   = (key & KEY_Right_Switch_Down)   ? 1 : 0;
-..\MyTask\Task_Init.c(33): error:  #20: identifier "KEY_Right_Key_Up" is undefined
-      out->Right_Key_Up        = (key & KEY_Right_Key_Up)        ? 1 : 0;
-..\MyTask\Task_Init.c(34): error:  #20: identifier "KEY_Right_Key_Down" is undefined
-      out->Right_Key_Down      = (key & KEY_Right_Key_Down)      ? 1 : 0;
-..\MyTask\Task_Init.c(35): error:  #20: identifier "KEY_Right_Key_Left" is undefined
-      out->Right_Key_Left      = (key & KEY_Right_Key_Left)      ? 1 : 0;
-..\MyTask\Task_Init.c(36): error:  #20: identifier "KEY_Right_Key_Right" is undefined
-      out->Right_Key_Right     = (key & KEY_Right_Key_Right)     ? 1 : 0;
-..\MyTask\Task_Init.c(38): error:  #20: identifier "KEY_Right_Broadside_Key" is undefined
-      out->Right_Broadside_Key = (key & KEY_Right_Broadside_Key) ? 1 : 0;
-..\MyTask\Task_Init.c(40): error:  #20: identifier "KEY_Left_Switch_Up" is undefined
-      out->Left_Switch_Up      = (key & KEY_Left_Switch_Up)      ? 1 : 0;
-..\MyTask\Task_Init.c(41): error:  #20: identifier "KEY_Left_Switch_Down" is undefined
-      out->Left_Switch_Down    = (key & KEY_Left_Switch_Down)    ? 1 : 0;
-..\MyTask\Task_Init.c(43): error:  #20: identifier "KEY_Left_Key_Up" is undefined
-      out->Left_Key_Up         = (key & KEY_Left_Key_Up)         ? 1 : 0;
-..\MyTask\Task_Init.c(44): error:  #20: identifier "KEY_Left_Key_Down" is undefined
-      out->Left_Key_Down       = (key & KEY_Left_Key_Down)       ? 1 : 0;
-..\MyTask\Task_Init.c(45): error:  #20: identifier "KEY_Left_Key_Left" is undefined
-      out->Left_Key_Left       = (key & KEY_Left_Key_Left)       ? 1 : 0;
-..\MyTask\Task_Init.c(46): error:  #20: identifier "KEY_Left_Key_Right" is undefined
-      out->Left_Key_Right      = (key & KEY_Left_Key_Right)      ? 1 : 0;
-..\MyTask\Task_Init.c(48): error:  #20: identifier "KEY_Left_Broadside_Key" is undefined
-      out->Left_Broadside_Key  = (key & KEY_Left_Broadside_Key)  ? 1 : 0;
-..\MyTask\Task_Init.c(52): error:  #20: identifier "MAX_ROBOT_VEL" is undefined
-      const float auto_max_vel = MAX_ROBOT_VEL * 0.9f;
-..\MyTask\Task_Init.c(55): error:  #20: identifier "USBD_HandleTypeDef" is undefined
-      extern USBD_HandleTypeDef hUsbDeviceFS;
-..\MyTask\Task_Init.c(56): error:  #20: identifier "USBD_STATE_CONFIGURED" is undefined
-      int usb_ready = (hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED);
-..\MyTask\Task_Init.c(57): error:  #20: identifier "g_usb_data_sem" is undefined
-      if (usb_ready && g_usb_data_sem == NULL) {
-..\MyTask\Task_Init.c(58): warning:  #223-D: function "UsbReceiver_Init" declared implicitly
-          UsbReceiver_Init();
-..\MyTask\Task_Init.c(61): warning:  #223-D: function "xSemaphoreTake" declared implicitly
-      if (usb_ready && xSemaphoreTake(g_usb_data_sem, 0) == pdTRUE) {
-..\MyTask\Task_Init.c(61): error:  #20: identifier "g_usb_data_sem" is undefined
-      if (usb_ready && xSemaphoreTake(g_usb_data_sem, 0) == pdTRUE) {
-..\MyTask\Task_Init.c(62): error:  #20: identifier "radar_dx" is undefined
-          radar_dx = g_usb_data.x2;
-..\MyTask\Task_Init.c(62): error:  #20: identifier "g_usb_data" is undefined
-          radar_dx = g_usb_data.x2;
-..\MyTask\Task_Init.c(63): error:  #20: identifier "radar_dy" is undefined
-          radar_dy = g_usb_data.y2;
-..\MyTask\Task_Init.c(64): error:  #20: identifier "vx" is undefined
-          vx       = -g_usb_data.vx;
-..\MyTask\Task_Init.c(65): error:  #20: identifier "vy" is undefined
-          vy       = g_usb_data.vy;
-..\MyTask\Task_Init.c(66): error:  #20: identifier "vz" is undefined
-          vz       = g_usb_data.vz;
-..\MyTask\Task_Init.c(67): error:  #20: identifier "t_land" is undefined
-          t_land   = g_usb_data.t_land;
-..\MyTask\Task_Init.c(68): error:  #20: identifier "radar_d" is undefined
-          radar_d  = sqrtf(radar_dx * radar_dx + radar_dy * radar_dy);
-..\MyTask\Task_Init.c(69): error:  #20: identifier "auto_target_x" is undefined
-          auto_target_x = radar_dx;
-..\MyTask\Task_Init.c(70): error:  #20: identifier "auto_target_y" is undefined
-          auto_target_y = radar_dy;
-..\MyTask\Task_Init.c: 3 warnings, 30 errors
 compiling app.c...
-..\MyTask\app.h(1): warning:  #1-D: last line of file ends without a newline
-  #include "Task_Init.h"
-..\MyTask\Task_Init.h(21): warning:  #1295-D: Deprecated declaration Remote_Analysis - give arg types
-  void Remote_Analysis();
-..\MyTask\app.c(6): error:  #20: identifier "g_comm_handle" is undefined
-      g_comm_handle = Comm_Init(&huart5);
-..\MyTask\app.c(6): warning:  #223-D: function "Comm_Init" declared implicitly
-      g_comm_handle = Comm_Init(&huart5);
-..\MyTask\app.c(7): warning:  #223-D: function "RemoteCommInit" declared implicitly
-      RemoteCommInit(NULL);
-..\MyTask\app.c(8): warning:  #223-D: function "register_comm_recv_cb" declared implicitly
-      register_comm_recv_cb(recv_cb, 0x01, &recv_pack);
-..\MyTask\app.c(8): error:  #20: identifier "recv_cb" is undefined
-      register_comm_recv_cb(recv_cb, 0x01, &recv_pack);
-..\MyTask\app.c(8): error:  #20: identifier "recv_pack" is undefined
-      register_comm_recv_cb(recv_cb, 0x01, &recv_pack);
-..\MyTask\app.c(31): warning:  #177-D: variable "Recv"  was declared but never referenced
-        uint8_t Recv[8] = {0};
-..\MyTask\app.c(39): warning:  #223-D: function "VESC_ReceiveHandler" declared implicitly
-      VESC_ReceiveHandler(&vesc_1.steer, &hcan2, ID,Recv);
-..\MyTask\app.c(39): error:  #20: identifier "vesc_1" is undefined
-      VESC_ReceiveHandler(&vesc_1.steer, &hcan2, ID,Recv);
-..\MyTask\app.c(40): error:  #20: identifier "vesc_2" is undefined
-  	VESC_ReceiveHandler(&vesc_2.steer, &hcan2, ID,Recv);
-..\MyTask\app.c(41): error:  #20: identifier "vesc_3" is undefined
-      VESC_ReceiveHandler(&vesc_3.steer, &hcan2, ID,Recv);
-..\MyTask\app.c(42): error:  #20: identifier "vesc_4" is undefined
-      VESC_ReceiveHandler(&vesc_4.steer, &hcan2, ID,Recv);
-..\MyTask\app.c(50): warning:  #223-D: function "Comm_UART_IRQ_Handle" declared implicitly
-  		Comm_UART_IRQ_Handle(g_comm_handle, &huart5, usart5_dma_buff,size);
-..\MyTask\app.c(50): error:  #20: identifier "g_comm_handle" is undefined
-  		Comm_UART_IRQ_Handle(g_comm_handle, &huart5, usart5_dma_buff,size);
-..\MyTask\app.c(50): error:  #20: identifier "usart5_dma_buff" is undefined
-  		Comm_UART_IRQ_Handle(g_comm_handle, &huart5, usart5_dma_buff,size);
-..\MyTask\app.c(80): warning:  #223-D: function "Comm_UART_IRQ_Handle" declared implicitly
-  		Comm_UART_IRQ_Handle(g_comm_handle, &huart5, usart5_dma_buff, 0);
-..\MyTask\app.c(80): error:  #20: identifier "g_comm_handle" is undefined
-  		Comm_UART_IRQ_Handle(g_comm_handle, &huart5, usart5_dma_buff, 0);
-..\MyTask\app.c(80): error:  #20: identifier "usart5_dma_buff" is undefined
-  		Comm_UART_IRQ_Handle(g_comm_handle, &huart5, usart5_dma_buff, 0);
-..\MyTask\app.c(84): warning:  #1-D: last line of file ends without a newline
-  }
-..\MyTask\app.c: 10 warnings, 11 errors
-compiling comm.c...
-..\MyTask\Task_Init.h(21): warning:  #1295-D: Deprecated declaration Remote_Analysis - give arg types
-  void Remote_Analysis();
-..\Remote_control\dataFrame.h(72): warning:  #1-D: last line of file ends without a newline
-  #endif
-..\Remote_control\data_poll.h(40): warning:  #1-D: last line of file ends without a newline
-  #endif
-..\Remote_control\comm.c: 3 warnings, 0 errors
-"BR\BR.axf" - 41 Error(s), 18 Warning(s).
+linking...
+Program Size: Code=37724 RO-data=616 RW-data=496 ZI-data=31856  
+FromELF: creating hex file...
+"BR\BR.axf" - 0 Error(s), 0 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -176,8 +54,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE@6.2.0
       Include file:  CMSIS/Core/Include/tz_context.h
-Target not created.
-Build Time Elapsed:  00:00:02
+Build Time Elapsed:  00:00:04
 </pre>
 </body>
 </html>

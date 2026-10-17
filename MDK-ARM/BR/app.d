@@ -60,3 +60,10 @@ br\app.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 br\app.o: ..\MyLib\motor.h
 br\app.o: ..\MyLib\motorEx.h
 br\app.o: ../Core/Inc/usart.h
+br\app.o: ..\MyLib\dataFrame.h
+br\app.o: ..\Remote_control\comm.h
+br\app.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
+br\app.o: ..\Remote_control\comm_stm32_hal_middle.h
+br\app.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
+br\app.o: ..\MyLib\VESC.h
+br\app.o: ..\MyLib\swerve.h

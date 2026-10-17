@@ -20,3 +20,4 @@
 #define CHASSIS_TASK_PERIOD_MS    2         /* 舵轮控制周期 (ms) */
 #define SWERVE_STEER_CUR_LIMIT    10000.0f  /* M2006 转向电流限幅 */
 #define SWERVE_VESC_CUR_LIMIT     20.0f     /* VESC 行走电流限幅 (A) */
+#define SWERVE_RESET_CUR_LIMIT    2000.0f   /* 上电复位扫描时的转向电流限幅（慢速找零位） */

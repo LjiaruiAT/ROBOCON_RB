@@ -59,7 +59,7 @@ void Remote(void *pvParameters);
 extern TaskHandle_t Remote_Handle;
 void Remote_Analysis_Task(void *pvParameters);
 extern TaskHandle_t Remote_Analysis_Handle;
-void Remote_Analysis();
+void Remote_Analysis(void);
 extern uint8_t usart5_dma_buff[60];
 extern uint8_t usart6_dma_buff[30];
 

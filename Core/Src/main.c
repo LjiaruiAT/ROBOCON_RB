@@ -81,7 +81,7 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+  /* USER CODE END Init */ 
 
   /* Configure the system clock */
   SystemClock_Config();
@@ -100,13 +100,12 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
-	CanFilter_Init(&hcan2);
-	HAL_CAN_Start(&hcan2);
-	HAL_CAN_ActivateNotification(&hcan2, CAN_IT_RX_FIFO1_MSG_PENDING);
-	
 	CanFilter_Init(&hcan1);
 	HAL_CAN_Start(&hcan1);
 	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+	CanFilter_Init(&hcan2);
+	HAL_CAN_Start(&hcan2);
+	HAL_CAN_ActivateNotification(&hcan2, CAN_IT_RX_FIFO1_MSG_PENDING);
   /* USER CODE END 2 */
 
   /* Init scheduler */

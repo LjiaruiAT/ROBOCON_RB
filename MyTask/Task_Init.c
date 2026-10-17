@@ -15,7 +15,7 @@ void Task_Init()
 
     	xTaskCreate(Remote,
          "Remote",
-          128,
+          256,
           NULL,
           4,
           &Remote_Handle); 
@@ -28,8 +28,8 @@ void Task_Init()
 		/* 舵轮底盘控制任务 */
 		xTaskCreate(Chassis_Task,
 		 "Chassis_Task",
-		  256, NULL,
-		  4,
+		  512, NULL,          
+		    4,
 		  &Chassis_Task_Handle);
 
 }
