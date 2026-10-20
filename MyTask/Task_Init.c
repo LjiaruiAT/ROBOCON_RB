@@ -2,6 +2,7 @@
 #include "app.h"
 uint8_t usart5_dma_buff[60];
 uint8_t usart6_dma_buff[30];
+ bool is_turn_flag = 0;
 
 void Task_Init()
 {

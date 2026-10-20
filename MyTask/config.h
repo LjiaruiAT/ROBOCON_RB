@@ -13,7 +13,7 @@
 #define RC_FULL_SCALE       1647.0f    /* 摇杆满量程（推满看 recv_pack.rocker[] 实测） */
 #define RC_DEADZONE         50.0f      /* 摇杆死区（原始值，回中偏置之内） */
 #define RC_TIMEOUT_MS       200        /* 遥控失联判定 (ms) */
-#define CHASSIS_VEL_MAX     1.0f       /* 遥控最大线速度 (m/s) */
+#define CHASSIS_VEL_MAX     12.0f       /* 遥控最大线速度 (m/s) */
 #define CHASSIS_OMEGA_MAX   3.0f       /* 遥控最大自转速度 (rad/s) */
 
 /* ---------------- 舵轮底盘（TODO：按实车标定后填值） ---------------- */

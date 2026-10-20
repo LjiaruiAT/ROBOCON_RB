@@ -17,6 +17,7 @@
 #include "comm_stm32_hal_middle.h"
 #include "VESC.h"
 #include "semphr.h"
+extern bool is_turn_flag;
 
 typedef struct{
 	uint8_t Left_Key_Up;         

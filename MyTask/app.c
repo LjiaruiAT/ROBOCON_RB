@@ -6,6 +6,7 @@ float Vx = 0;
 float Vy = 0;
 float Wz = 0;
 
+
 void Remote(void *pvParameters)
 {
     g_comm_handle = Comm_Init(&huart5);
@@ -64,13 +65,15 @@ static void Swerve_GpioInit(void)
 static void Swerve_Config(void)
 {
 	static const float pos_x[SWERVE_COUNT] = {  0.215f,  0.215f, -0.215f, -0.215f };
-	static const float pos_y[SWERVE_COUNT] = {  0.225f, -0.225f,  0.225f, -0.225f };
+	static const float pos_y[SWERVE_COUNT] = {  0.225f, -0.225f, -0.225f,  0.225f };
 
 	static const uint32_t steer_id[SWERVE_COUNT] = { 0x201, 0x202, 0x203, 0x204 };
 	static const uint32_t drive_id[SWERVE_COUNT] = { 0x01, 0x02, 0x03, 0x04 };
 
 	static GPIO_TypeDef * const key_port[SWERVE_COUNT] = { GPIOC, GPIOC, GPIOB, GPIOB };
 	static const uint16_t        key_pin [SWERVE_COUNT] = { GPIO_PIN_4, GPIO_PIN_5, GPIO_PIN_0, GPIO_PIN_1 };
+
+	static const float dir_drive_tab[SWERVE_COUNT] = {  1.0f, -1.0f, -1.0f,  1.0f };
 
 	for (uint8_t i = 0; i < SWERVE_COUNT; i++)
 	{
@@ -90,8 +93,8 @@ static void Swerve_Config(void)
 		m->y  = pos_y[i];
 		m->steer_gear = 144.0f;       
 		m->zero_deg   = 0.0f;         
-		m->dir_steer  = 1.0f;        
-		m->dir_drive  = 1.0f;          
+		m->dir_steer  = 1.0f;
+		m->dir_drive  = dir_drive_tab[i];
 		m->erpm_per_mps   = 663.1f;     
 		m->steer_deadband = 3.0f;
 
@@ -107,11 +110,31 @@ static void Swerve_Config(void)
 		m->steer.vel_pid.limit = 5000.0f;
 		m->steer.vel_pid.output_limit = 10000.0f;
 
-		m->drive_pid.Kp = 0.0250f;     
+		m->drive_pid.Kp = 0.0150f;     
 		m->drive_pid.Ki = 0.0005f;
-		m->drive_pid.Kd = 0.3f;
+		m->drive_pid.Kd = 0.0f;
 		m->drive_pid.limit = 500.0f;
-		m->drive_pid.output_limit = 10.0f;
+		m->drive_pid.output_limit = 30.0f;
+	}
+}
+
+void is_turn_down(void)
+{
+	uint8_t aligned = 1;
+
+	for (uint8_t i = 0; i < SWERVE_COUNT; i++)
+	{
+		if (!Swerve_IsAligned(&swerve[i])) { aligned = 0; break; }
+	}
+
+	is_turn_flag = aligned ? 0 : 1;
+
+	if (is_turn_flag)
+	{
+		for (uint8_t i = 0; i < SWERVE_COUNT; i++)
+		{
+			swerve[i].drive_current = 0.0f;
+		}
 	}
 }
 
@@ -182,9 +205,9 @@ void Chassis_Task(void *pvParameters)
 		{
 			chassis_stack_free = uxTaskGetStackHighWaterMark(NULL);
 		}
-		float vy = rc_cmd.vx;
-		float vx = rc_cmd.vy;
-		float wz = rc_cmd.wz;
+		float vy = -rc_cmd.vx;
+		float vx = -rc_cmd.vy;
+		float wz = -rc_cmd.wz;
 
 		if ((xTaskGetTickCount() - rc_cmd.tick) > pdMS_TO_TICKS(RC_TIMEOUT_MS))
 		{
@@ -201,6 +224,8 @@ void Chassis_Task(void *pvParameters)
 			                                             SWERVE_STEER_CUR_LIMIT,
 			                                             SWERVE_VESC_CUR_LIMIT);
 		}
+
+		is_turn_down();
 
 		MotorSend(&hcan1, 0x200, steer_cur);
 		for (uint8_t i = 0; i < SWERVE_COUNT; i++)
@@ -227,7 +252,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	uint8_t Recv[8] = {0};
 	 ID = CAN_Receive_DataFrame(hcan, Recv);
 
-	/* 转向 M2006 反馈（0x201~0x204，标准帧，走 CAN1） */
 	Motor2006Recv(&swerve[0].steer, hcan, ID, Recv);
 	Motor2006Recv(&swerve[1].steer, hcan, ID, Recv);
 	Motor2006Recv(&swerve[2].steer, hcan, ID, Recv);
