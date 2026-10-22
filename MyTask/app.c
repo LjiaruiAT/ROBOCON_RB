@@ -73,7 +73,7 @@ static void Swerve_Config(void)
 	static GPIO_TypeDef * const key_port[SWERVE_COUNT] = { GPIOC, GPIOC, GPIOB, GPIOB };
 	static const uint16_t        key_pin [SWERVE_COUNT] = { GPIO_PIN_4, GPIO_PIN_5, GPIO_PIN_0, GPIO_PIN_1 };
 
-	static const float dir_drive_tab[SWERVE_COUNT] = {  1.0f, -1.0f, -1.0f,  1.0f };
+	static const float dir_drive_tab[SWERVE_COUNT] = {  -1.0f, -1.0f, -1.0f,  -1.0f };
 
 	for (uint8_t i = 0; i < SWERVE_COUNT; i++)
 	{
@@ -85,7 +85,7 @@ static void Swerve_Config(void)
 		m->steer.hcan = &hcan1;      
 		m->drive.hcan     = &hcan2; 
 		m->drive.motor_id = drive_id[i];
-
+ 
 		m->key_port = key_port[i];    
 		m->key_pin  = key_pin[i];
 
@@ -95,7 +95,7 @@ static void Swerve_Config(void)
 		m->zero_deg   = 0.0f;         
 		m->dir_steer  = 1.0f;
 		m->dir_drive  = dir_drive_tab[i];
-		m->erpm_per_mps   = 663.1f;     
+		m->erpm_per_mps   = DRIVE_ERPM_PER_MPS;     
 		m->steer_deadband = 3.0f;
 
 		m->steer.pos_pid.Kp = 2.0f;    
@@ -110,17 +110,17 @@ static void Swerve_Config(void)
 		m->steer.vel_pid.limit = 5000.0f;
 		m->steer.vel_pid.output_limit = 10000.0f;
 
-		m->drive_pid.Kp = 0.0150f;     
+		m->drive_pid.Kp = 0.010f;     
 		m->drive_pid.Ki = 0.0005f;
 		m->drive_pid.Kd = 0.0f;
-		m->drive_pid.limit = 500.0f;
+		m->drive_pid.limit = 1000.0f;
 		m->drive_pid.output_limit = 30.0f;
 	}
 }
 
 void is_turn_down(void)
 {
-	uint8_t aligned = 1;
+	uint8_t aligned = 1; 
 
 	for (uint8_t i = 0; i < SWERVE_COUNT; i++)
 	{
@@ -228,20 +228,24 @@ void Chassis_Task(void *pvParameters)
 		is_turn_down();
 
 		MotorSend(&hcan1, 0x200, steer_cur);
-		for (uint8_t i = 0; i < SWERVE_COUNT; i++)
-		{
-			uint32_t t_wait = HAL_GetTick();
 
-			while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan2) == 0U)  
-			{
-				if ((HAL_GetTick() - t_wait) > 1U)  
-				{
-					can_tx_skip_cnt++;
-					break;
-				}
-			}
-			VESC_SetCurrent(&swerve[i].drive, swerve[i].drive_current);
-		}
+
+
+static uint8_t tx_phase = 0u;
+
+if (tx_phase == 0u)
+{
+    VESC_SetCurrent(&swerve[0].drive, swerve[0].drive_current);
+    VESC_SetCurrent(&swerve[1].drive, swerve[1].drive_current);
+}
+else
+{
+    VESC_SetCurrent(&swerve[2].drive, swerve[2].drive_current);
+    VESC_SetCurrent(&swerve[3].drive, swerve[3].drive_current);
+}
+tx_phase ^= 1u;
+
+
 
 		vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(CHASSIS_TASK_PERIOD_MS));
 	}
