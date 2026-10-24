@@ -34,7 +34,7 @@ void Task_Init()
 		    4,
 		  &Chassis_Task_Handle);
 
-		/* 上位机 USB 协议：解析任务 + 1 ms 硬件看门狗时基 */
+		/* 上位机USB协议：启用已有TIM1/HAL毫秒安全检查，不另建定时器 */
 		UsbUpper_Init();
 
 }

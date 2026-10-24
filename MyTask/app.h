@@ -13,3 +13,6 @@ typedef struct
 extern RcCmd_t      rc_cmd;
 extern TaskHandle_t Chassis_Task_Handle;
 void Chassis_Task(void *pvParameters);
+
+/* TIM1安全路径：仅发送有界VESC零电流重试，不等待CAN邮箱。 */
+void Chassis_HostStopFromISR(uint8_t unsafe);

@@ -56,5 +56,4 @@ br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_C
 br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
 br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
 br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
-br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
-br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
+br\usbd_cdc_if.o: ..\MyTask\usb_upper.h

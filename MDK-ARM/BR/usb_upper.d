@@ -46,8 +46,6 @@ br\usb_upper.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4
 br\usb_upper.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
 br\usb_upper.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
 br\usb_upper.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
-br\usb_upper.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
-br\usb_upper.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
 br\usb_upper.o: ../USB_DEVICE/App/usbd_cdc_if.h
 br\usb_upper.o: ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc/usbd_cdc.h
 br\usb_upper.o: ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h

@@ -40,7 +40,7 @@ uint32_t VESC_SetVoltage(VESC_t *vesc,float percentage)
 uint32_t VESC_SetCurrent(VESC_t *vesc,float ampere)
 {
     CAN_TxHeaderTypeDef head;
-    uint8_t buffer[4];
+    uint8_t buffer[8]={0};
     uint32_t mailbox;
     uint32_t temp=(int32_t)(ampere*1000.0f);
 

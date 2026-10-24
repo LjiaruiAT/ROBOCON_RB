@@ -3,7 +3,7 @@
  * @brief   上位机（ROS 2）USB CDC 协议实现
  *
  * 数据流：
- *   USB FS ISR -> CDC_Receive_FS -> CDC_RecvCplt_Handler -> kUsbRecvQueue
+ *   USB FS ISR -> CDC_Receive_FS -> CDC_RecvCplt_Handler -> 单包 mailbox
  *     -> USB_RecvTask -> UsbUpper_OnUsbRx -> 流式帧解析 -> g_host_vel
  *     -> Chassis_Task 读取 -> Swerve_ModuleControl()
  *
@@ -50,14 +50,11 @@ volatile uint32_t g_host_max_gap_ms;     /*!< 统计周期内最大帧间隔 (ms
 
 static uint32_t   s_rate_cnt;
 static uint32_t   s_gap_max;
-static TickType_t s_rate_t0;
+static uint32_t   s_rate_t0;
 static uint8_t    s_rx_started;
 
-/* 看门狗：连续 N 个底盘周期没收到新帧即超时（150 × 2ms = 300ms） */
-#define HOST_WD_MISS_LIMIT   (HOST_WD_TIMEOUT_MS / CHASSIS_TASK_PERIOD_MS)
-
-static uint32_t s_wd_last_seq;
-static uint16_t s_wd_miss_cnt;
+/* HAL_Init()已启动TIM1；初始化完成前不能触发底盘安全输出。 */
+static volatile uint8_t s_wd_inited;
 
 /* ------------------------------------------------------------------ */
 /* 内部状态                                                            */
@@ -81,12 +78,35 @@ typedef struct
 static HostTxItem_t s_txq[HOST_TXQ_DEPTH];
 static uint8_t      s_txq_head;
 static uint8_t      s_txq_tail;
+static uint32_t     s_txq_generation;
 
-static uint8_t      s_tx_busy;
-static TickType_t   s_last_tx;
+static uint8_t      s_tx_pending;
+static uint8_t      s_tx_is_start;
 static TickType_t   s_last_start_tx;
 static uint8_t      s_tx_buf[HOST_TX_ITEM_MAX];
 static uint8_t      s_tx_len;
+static uint32_t     s_tx_generation;
+static uint32_t     s_rx_generation;
+volatile uint32_t   g_host_tx_drop;
+
+static void host_tx_wake(void)
+{
+    if (s_upper_task != NULL)
+    {
+        xTaskNotifyGive(s_upper_task);
+    }
+}
+
+void UsbUpper_OnUsbTxComplete(void)
+{
+    BaseType_t woken = pdFALSE;
+
+    if (s_upper_task != NULL)
+    {
+        vTaskNotifyGiveFromISR(s_upper_task, &woken);
+        portYIELD_FROM_ISR(woken);
+    }
+}
 
 /* ------------------------------------------------------------------ */
 /* CRC-16/Modbus                                                       */
@@ -136,42 +156,76 @@ static float host_clamp(float v, float lim)
 }
 
 /* ------------------------------------------------------------------ */
-/* 看门狗：收到有效 0x01 就刷新时刻，由 tick 判断是否超时               */
+/* 看门狗：只有有效0x01发布才喂狗，HAL毫秒差不依赖底盘任务进度。        */
 /* ------------------------------------------------------------------ */
-static void host_wd_reset(void)
+static void host_publish_velocity(float vx, float vy, float om)
 {
-    TickType_t now = xTaskGetTickCount();
+    uint32_t primask = __get_PRIMASK();
+    uint32_t now;
 
+    __disable_irq();
+    now = HAL_GetTick();
     if (s_rx_started != 0u)
     {
-        uint32_t gap = (uint32_t)(now - (TickType_t)g_host_vel.last_rx_tick);
+        uint32_t gap = now - g_host_vel.last_rx_tick;
         if (gap > s_gap_max) { s_gap_max = gap; }
         s_rate_cnt++;
     }
     else
     {
-        s_rx_started = 1u;      /* 第一帧不计间隔，否则会把上电至今算进去 */
+        s_rx_started = 1u;      /* 第一帧不计上电至今的间隔 */
         s_rate_cnt   = 1u;
     }
 
-    g_host_vel.last_rx_tick = (uint32_t)now;
-    g_host_timeout          = 0u;
+    g_host_vel.vx = vx;
+    g_host_vel.vy = vy;
+    g_host_vel.omega = om;
+    g_host_vel.last_rx_tick = now;
+    g_host_vel.sequence++;
+    g_host_vel.valid = 1u;
+    g_host_timeout = 0u;
+    /* 延续协议：只有非零有效速度解除急停闭锁。 */
+    if ((vx != 0.0f) || (vy != 0.0f) || (om != 0.0f))
+    {
+        g_host_estop = 0u;
+    }
+    __set_PRIMASK(primask);
 }
 
-/* 每 1 秒结算一次接收频率与最大间隔 */
+/* 调用者已屏蔽中断，或正在TIM1 ISR中；无RTOS API和等待。 */
+static uint8_t host_wd_update(uint32_t now)
+{
+    if (s_wd_inited == 0u) { return 0u; }
+    if ((g_host_vel.valid != 0u) &&
+        ((uint32_t)(now - g_host_vel.last_rx_tick) >= HOST_WD_TIMEOUT_MS))
+    {
+        if (g_host_timeout == 0u)
+        {
+            g_host_timeout = 1u;
+            g_host_timeout_cnt++;
+        }
+    }
+    return ((g_host_estop != 0u) ||
+            ((g_host_vel.valid != 0u) && (g_host_timeout != 0u))) ? 1u : 0u;
+}
+
+/* 每1秒结算一次；与USB接收任务的累加/清零互斥，间隔单位恒为ms。 */
 static void host_stat_poll(void)
 {
-    TickType_t now = xTaskGetTickCount();
+    uint32_t primask = __get_PRIMASK();
+    uint32_t now;
 
-    if ((now - s_rate_t0) >= pdMS_TO_TICKS(1000))
+    __disable_irq();
+    now = HAL_GetTick();
+    if ((uint32_t)(now - s_rate_t0) >= 1000u)
     {
         g_host_rx_rate    = s_rate_cnt;
         g_host_max_gap_ms = s_gap_max;
-
         s_rate_cnt = 0u;
         s_gap_max  = 0u;
         s_rate_t0  = now;
     }
+    __set_PRIMASK(primask);
 }
 
 /* ------------------------------------------------------------------ */
@@ -186,18 +240,26 @@ static uint8_t host_txq_push(const uint8_t *buf, uint8_t len)
         return 0u;
     }
 
-    /* 生产者有两个任务：USB_RecvTask（回执）与 UsbUpper_Task（0x12） */
+    /* 队列只包含当前 USB 会话的回执。 */
     taskENTER_CRITICAL();
+    if (s_txq_generation != USB_CDC_GetGeneration())
+    {
+        s_txq_head = 0u;
+        s_txq_tail = 0u;
+        s_txq_generation = USB_CDC_GetGeneration();
+    }
     next = (uint8_t)((s_txq_head + 1u) % HOST_TXQ_DEPTH);
     if (next == s_txq_tail)
     {
+        g_host_tx_drop++;
         taskEXIT_CRITICAL();
-        return 0u;                      /* 队列满，丢弃 */
+        return 0u;
     }
     memcpy(s_txq[s_txq_head].buf, buf, len);
     s_txq[s_txq_head].len = len;
     s_txq_head = next;
     taskEXIT_CRITICAL();
+    host_tx_wake();
     return 1u;
 }
 
@@ -244,7 +306,6 @@ static void host_ack_push(uint8_t cmd, uint8_t status, uint32_t seq)
 
     (void)host_txq_push(f, (uint8_t)sizeof(f));
 }
-
 /* ------------------------------------------------------------------ */
 /* 命令分发                                                            */
 /* ------------------------------------------------------------------ */
@@ -280,20 +341,8 @@ static void host_dispatch(uint8_t cmd, const uint8_t *data, uint8_t len)
             vy = host_clamp(vy, HOST_VY_LIMIT);
             om = host_clamp(om, HOST_OMEGA_LIMIT);
 
-            /* 先刷时间戳：保证任何时刻看到 valid=1，last_rx_tick 已经是新值 */
-            host_wd_reset();
-
-            g_host_vel.vx    = vx;
-            g_host_vel.vy    = vy;
-            g_host_vel.omega = om;
-            g_host_vel.sequence++;
-            g_host_vel.valid = 1u;
-
-            /* 非零速度指令解除急停闭锁 */
-            if ((vx != 0.0f) || (vy != 0.0f) || (om != 0.0f))
-            {
-                g_host_estop = 0u;
-            }
+            /* 原子发布速度、序号、毫秒时间戳和急停解除状态。 */
+            host_publish_velocity(vx, vy, om);
 
             break;
         }
@@ -306,6 +355,7 @@ static void host_dispatch(uint8_t cmd, const uint8_t *data, uint8_t len)
                 return;
             }
             g_host_estop = 1u;
+            /* estop独立于速度valid，且不修改速度接收看门狗时间戳。 */
             /* v1.5：急停必须回执；急停帧本身没有 seq 字段，填 0 */
             host_ack_push(HOST_CMD_ESTOP, HOST_ST_OK, 0u);
             break;
@@ -471,15 +521,34 @@ static void host_feed(uint8_t byte)
 void UsbUpper_OnUsbRx(uint8_t *src, uint16_t size)
 {
     uint16_t i;
+    uint32_t generation;
 
     if ((src == NULL) || (size == 0u))
     {
         return;
     }
 
+    generation = USB_CDC_GetDeliveryGeneration();
+    taskENTER_CRITICAL();
+    if (s_rx_generation != generation)
+    {
+        s_frame_len = 0u;
+        s_rx_generation = generation;
+    }
+    taskEXIT_CRITICAL();
+
     for (i = 0u; i < size; i++)
     {
+        /* 包的所属会话不随 reset 改变；检查与命令发布之间禁止 USB ISR。 */
+        taskENTER_CRITICAL();
+        if (generation != USB_CDC_GetGeneration())
+        {
+            s_frame_len = 0u;
+            taskEXIT_CRITICAL();
+            return;
+        }
         host_feed(src[i]);
+        taskEXIT_CRITICAL();
     }
 }
 
@@ -507,46 +576,58 @@ static uint8_t host_build_start_frame(uint8_t *out)
 static void host_tx_poll(void)
 {
     TickType_t now = xTaskGetTickCount();
-    uint8_t    f[HOST_FRAME_OVERHEAD + HOST_LEN_START_STATE];
-    uint8_t    flen;
+    uint32_t generation;
 
-    /* 1. 0x12：状态翻转立即入队，否则按 10 Hz 入队 */
-    if ((s_start_dirty != 0u) ||
-        ((now - s_last_start_tx) >= pdMS_TO_TICKS(HOST_START_TX_MS)))
+    /* 检查、复用缓冲及提交与 USB reset 中断串行。 */
+    taskENTER_CRITICAL();
+    generation = USB_CDC_GetGeneration();
+    if (s_tx_generation != generation)
     {
-        flen = host_build_start_frame(f);
-        if (host_txq_push(f, flen) != 0u)
+        s_tx_generation = generation;
+        s_tx_pending = 0u;
+        if (s_txq_generation != generation)
         {
-            s_start_dirty   = 0u;
-            s_last_start_tx = now;
+            s_txq_head = 0u;
+            s_txq_tail = 0u;
+            s_txq_generation = generation;
         }
+        s_start_dirty = 1u;
     }
 
-    /* 2. 上一帧还没发出去：本周期不动 s_tx_buf，下周期再试 */
-    if (s_tx_busy != 0u)
+    if ((USB_CDC_IsConfigured() == 0u) || (CDC_TransmitBusy_FS() != 0u))
     {
-        if ((now - s_last_tx) > pdMS_TO_TICKS(5))
-        {
-            s_tx_busy = 0u;             /* 兜底：USB 断开时不会永久卡住 */
-        }
+        taskEXIT_CRITICAL();
         return;
     }
 
-    /* 3. 从队列取一条发送 */
-    if (host_txq_pop() == 0u)
+    if (s_tx_pending == 0u)
     {
-        return;
+        s_tx_is_start = 0u;
+        if (host_txq_pop() == 0u)
+        {
+            if ((s_start_dirty == 0u) &&
+                ((now - s_last_start_tx) < pdMS_TO_TICKS(HOST_START_TX_MS)))
+            {
+                taskEXIT_CRITICAL();
+                return;
+            }
+            s_tx_len = host_build_start_frame(s_tx_buf);
+            s_tx_is_start = 1u;
+        }
+        s_tx_pending = 1u;
     }
 
+    /* BUSY/FAIL 保留该项；实际 TxState 清零前绝不改写发送缓冲。 */
     if (CDC_Transmit_FS(s_tx_buf, (uint16_t)s_tx_len) == USBD_OK)
     {
-        s_tx_busy = 1u;
-        s_last_tx = now;
+        s_tx_pending = 0u;
+        if (s_tx_is_start != 0u)
+        {
+            s_last_start_tx = now;
+            s_start_dirty = (s_tx_buf[4] != (s_start_state & 0x01u)) ? 1u : 0u;
+        }
     }
-    else
-    {
-        s_tx_len = 0u;                  /* 发送失败：丢弃，0x12 下周期会重发 */
-    }
+    taskEXIT_CRITICAL();
 }
 
 void UsbUpper_SetStartState(uint8_t start)
@@ -557,6 +638,7 @@ void UsbUpper_SetStartState(uint8_t start)
     {
         s_start_state = v;
         s_start_dirty = 1u;
+        host_tx_wake();
     }
 }
 
@@ -565,57 +647,43 @@ uint8_t UsbUpper_GetStartState(void)
     return (uint8_t)s_start_state;
 }
 
-/**
- * @brief 等待速度是否可用
- * @note  超时判据是"连续多少个底盘周期没有新帧"，不看任何时间戳。
- *        只依赖两点：本函数由 Chassis_Task 每个周期调用一次；
- *        USB 侧每收到一帧有效 0x01 就令 g_host_vel.sequence 加一。
- *        全部状态都在本任务的上下文里读写，不存在跨任务竞态。
- */
+/** Copy the complete command and safety state as one interrupt-atomic snapshot. */
+uint8_t UsbUpper_GetVelocitySnapshot(HostVelocitySnapshot_t *out)
+{
+    uint32_t primask;
+
+    if (out == NULL) { return 0u; }
+    primask = __get_PRIMASK();
+    __disable_irq();
+    out->velocity.vx = g_host_vel.vx;
+    out->velocity.vy = g_host_vel.vy;
+    out->velocity.omega = g_host_vel.omega;
+    out->velocity.sequence = g_host_vel.sequence;
+    out->velocity.last_rx_tick = g_host_vel.last_rx_tick;
+    out->velocity.valid = g_host_vel.valid;
+    out->estop = g_host_estop;
+    out->timeout = g_host_timeout;
+    __set_PRIMASK(primask);
+    return 1u;
+}
+
+/** 1 ms hook called after HAL_IncTick from TIM1. Safe until UsbUpper_Init. */
+uint8_t UsbUpper_WatchdogTick1ms(void)
+{
+    return host_wd_update(HAL_GetTick());
+}
+
+/** Compatibility query for callers outside the chassis loop. */
 uint8_t UsbUpper_IsVelocityUsable(void)
 {
-    uint32_t seq;
+    HostVelocitySnapshot_t snapshot;
+    uint32_t now;
 
-    if (g_host_vel.valid == 0u)
-    {
-        s_wd_miss_cnt = 0u;
-        return 0u;                      /* 还没接管 */
-    }
-
-    if (g_host_estop != 0u)
-    {
-        s_wd_miss_cnt = 0u;
-        return 0u;                      /* 急停闭锁 */
-    }
-
-    seq = g_host_vel.sequence;
-
-    if (seq != s_wd_last_seq)
-    {
-        /* 本周期有新帧 */
-        s_wd_last_seq  = seq;
-        s_wd_miss_cnt  = 0u;
-        g_host_timeout = 0u;
-        return 1u;
-    }
-
-    /* 本周期没有新帧 */
-    if (s_wd_miss_cnt < HOST_WD_MISS_LIMIT)
-    {
-        s_wd_miss_cnt++;
-    }
-
-    if (s_wd_miss_cnt >= HOST_WD_MISS_LIMIT)
-    {
-        if (g_host_timeout == 0u)
-        {
-            g_host_timeout = 1u;
-            g_host_timeout_cnt++;
-        }
-        return 0u;
-    }
-
-    return 1u;
+    if (UsbUpper_GetVelocitySnapshot(&snapshot) == 0u) { return 0u; }
+    if (snapshot.estop != 0u) { return 0u; }
+    if (snapshot.velocity.valid == 0u) { return 0u; }
+    now = HAL_GetTick();
+    return ((uint32_t)(now - snapshot.velocity.last_rx_tick) < HOST_WD_TIMEOUT_MS) ? 1u : 0u;
 }
 int a = 0;
 /* ------------------------------------------------------------------ */
@@ -623,37 +691,39 @@ int a = 0;
 /* ------------------------------------------------------------------ */
 static void UsbUpper_Task(void *argument)
 {
-    TickType_t last = xTaskGetTickCount();
-    uint8_t    usb_inited = 0u;
-
+    uint8_t usb_inited = 0u;
+if (a == 1)
+{
+s_start_state = 1;
+}
     (void)argument;
 
     /* 上电默认未发车，尽快让上位机看到 start=0 */
-    s_start_state = 0u;
+//    s_start_state = 0u;
     s_start_dirty = 1u;
 
     for (;;)
     {
         host_stat_poll();
 
-        /* USB 枚举完成后才能创建接收任务，否则 USBD_CDC_ReceivePacket 会失败 */
-        if ((usb_inited == 0u) &&
-            (hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED))
+        /* 任务创建失败时保留重试机会；首次 OUT 包由传输层暂存。 */
+        if ((usb_inited == 0u) && (USB_CDC_IsConfigured() != 0u))
         {
-            USB_CDC_Init(UsbUpper_OnUsbRx, NULL, NULL);
-            usb_inited = 1u;
-            s_start_inited = 1u;
+            if (USB_CDC_Init(UsbUpper_OnUsbRx, NULL, NULL) == pdPASS)
+            {
+                usb_inited = 1u;
+            }
         }
 
         /* 发车信号：调试期用 g_host_start_override，正式接入时换成 GPIO */
         UsbUpper_SetStartState((g_host_start_override != 0u) ? 1u : 0u);
 
-        if (s_start_inited != 0u)
+        if (usb_inited != 0u)
         {
             host_tx_poll();
         }
 
-        vTaskDelayUntil(&last, pdMS_TO_TICKS(HOST_TASK_PERIOD_MS));
+        (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HOST_TASK_PERIOD_MS));
     }
 }
 
@@ -662,6 +732,8 @@ static void UsbUpper_Task(void *argument)
 /* ------------------------------------------------------------------ */
 void UsbUpper_Init(void)
 {
+    BaseType_t created;
+
     g_host_vel.vx        = 0.0f;
     g_host_vel.vy        = 0.0f;
     g_host_vel.omega     = 0.0f;
@@ -680,23 +752,25 @@ void UsbUpper_Init(void)
     s_frame_len     = 0u;
     s_start_state   = 0u;
     s_start_dirty   = 0u;
-    s_start_inited  = 0u;
     s_txq_head      = 0u;
     s_txq_tail      = 0u;
-    s_tx_busy       = 0u;
+    s_txq_generation = USB_CDC_GetGeneration();
+    s_tx_pending    = 0u;
+    s_tx_is_start   = 0u;
     s_tx_len        = 0u;
-    s_last_tx       = 0u;
+    s_tx_generation = s_txq_generation;
+    s_rx_generation = s_txq_generation;
     s_last_start_tx = 0u;
+    g_host_tx_drop  = 0u;
 
     g_host_rx_rate    = 0u;
     g_host_max_gap_ms = 0u;
     s_rate_cnt        = 0u;
     s_gap_max         = 0u;
-    s_rate_t0         = 0u;
+    s_rate_t0         = HAL_GetTick();
     s_rx_started      = 0u;
+    s_wd_inited       = 1u;
 
-    s_wd_last_seq  = 0u;
-    s_wd_miss_cnt  = 0u;
-
-    xTaskCreate(UsbUpper_Task, "usb_upper", 256, NULL, 3, NULL);
+    created = xTaskCreate(UsbUpper_Task, "usb_upper", 256, NULL, 3, &s_upper_task);
+    configASSERT(created == pdPASS);
 }

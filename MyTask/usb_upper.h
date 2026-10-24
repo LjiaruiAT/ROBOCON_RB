@@ -1,7 +1,7 @@
 /**
  * @file    usb_upper.h
  * @brief   上位机（ROS 2）USB CDC 协议接入
- * @note    协议见 upper/Robocon27_R2/docs/protocol.md v1.4
+ * @note    协议见 upper/roboconr2-no-sim/Robocon27_R2-no-sim/docs/protocol.md v1.5
  *          帧格式：AA | 55(下行)/56(上行) | cmd | len | data[len] | crc_lo | crc_hi
  *          CRC-16/Modbus，范围 = cmd + len + data，低字节在前
  */
@@ -53,10 +53,19 @@ typedef struct
     float    vy;            /*!< 车体左向速度 (m/s)          */
     float    omega;         /*!< 绕 +Z 角速度 (rad/s)，逆时针正 */
     uint32_t sequence;      /*!< 每收到一条有效 0x01 递增     */
-    uint32_t last_rx_tick;  /*!< 最近一条有效 0x01 的时刻     */
+    uint32_t last_rx_tick;  /*!< 最近有效 0x01 的 HAL_GetTick() 毫秒值 */
     uint8_t  valid;         /*!< 是否收到过至少一条有效 0x01  */
 } HostVelocity_t;
 
+/* 速度、接收时刻/序号与安全状态作为同一个快照读取。 */
+typedef struct
+{
+    HostVelocity_t velocity;
+    uint8_t estop;
+    uint8_t timeout;
+} HostVelocitySnapshot_t;
+
+/* 保留公开变量供 Watch 调试；控制代码必须使用快照接口。 */
 extern volatile HostVelocity_t g_host_vel;
 
 extern volatile uint8_t  g_host_estop;      /*!< 1 = 急停闭锁中            */
@@ -83,14 +92,15 @@ extern volatile uint32_t g_host_len_err;
 extern volatile uint32_t g_host_unknown_cmd;
 extern volatile uint32_t g_host_float_err;
 extern volatile uint32_t g_host_timeout_cnt;
+extern volatile uint32_t g_host_tx_drop; /*!< ACK队列满丢弃计数 */
 
 /* ------------------------------------------------------------------ */
 /* 接口                                                                */
 /* ------------------------------------------------------------------ */
 
 /**
- * @brief 初始化上位机链路：创建任务 + 启动 1 ms 硬件看门狗定时器
- * @note  在 Task_Init() 中调用一次（调度器已启动之后）
+ * @brief 初始化上位机链路、创建任务并使能已有 TIM1 1 ms 安全检查
+ * @note  在 Task_Init() 中调用一次；不创建/重启 HAL 时基定时器。
  */
 void UsbUpper_Init(void);
 
@@ -102,6 +112,9 @@ void UsbUpper_Init(void);
  */
 void UsbUpper_OnUsbRx(uint8_t *src, uint16_t size);
 
+/** @brief USB TX完成ISR通知，不在此回调中复用发送buffer */
+void UsbUpper_OnUsbTxComplete(void);
+
 /**
  * @brief 设置发车状态（0 = 未发车，1 = 发车）
  * @note  状态变化会立即上行一帧，之后按 10 Hz 重发当前值
@@ -111,10 +124,13 @@ void UsbUpper_SetStartState(uint8_t start);
 /** @brief 读取当前发车状态 */
 uint8_t UsbUpper_GetStartState(void);
 
-/**
- * @brief 当前上位机速度是否可用于底盘控制
- * @return 1 = 可用（已收到过有效帧、非急停、未超时）；0 = 应当停车
- */
+/** @brief 复制一致的速度、安全标志和毫秒时间戳快照，返回非零表示已读 */
+uint8_t UsbUpper_GetVelocitySnapshot(HostVelocitySnapshot_t *out);
+
+/** @brief 由 TIM1 1 ms ISR调用；返回当前主机速度是否不安全 */
+uint8_t UsbUpper_WatchdogTick1ms(void);
+
+/** @brief 当前上位机速度是否可用于底盘控制（基于真实毫秒超时） */
 uint8_t UsbUpper_IsVelocityUsable(void);
 
 #endif /* __USB_UPPER_H__ */

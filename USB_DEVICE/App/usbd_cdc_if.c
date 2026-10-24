@@ -23,7 +23,11 @@
 
 /* USER CODE BEGIN INCLUDE */
 #include "usb_trans.h"
+#include "usb_upper.h"
 
+/* The upper layer owns the notification implementation.  Keep the local
+ * declaration until its public header is updated by the upper-layer task. */
+extern void UsbUpper_OnUsbTxComplete(void);
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -153,9 +157,14 @@ USBD_CDC_ItfTypeDef USBD_Interface_fops_FS =
 static int8_t CDC_Init_FS(void)
 {
   /* USER CODE BEGIN 3 */
-  /* Set Application Buffers */
-  USBD_CDC_SetTxBuffer(&hUsbDeviceFS, UserTxBufferFS, 0);
-  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
+  /* Set Application Buffers before the class automatically arms its first OUT. */
+  if ((USBD_CDC_SetTxBuffer(&hUsbDeviceFS, UserTxBufferFS, 0) != USBD_OK) ||
+      (USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS) != USBD_OK))
+  {
+    USB_CDC_ClassDeInit();
+    return (USBD_FAIL);
+  }
+  USB_CDC_ClassInit();
   return (USBD_OK);
   /* USER CODE END 3 */
 }
@@ -166,9 +175,9 @@ static int8_t CDC_Init_FS(void)
   */
 static int8_t CDC_DeInit_FS(void)
 {
-  /* USER CODE BEGIN 4 */
+  /* Do not call upper-layer callbacks or RTOS APIs from USB lifecycle code. */
+  USB_CDC_ClassDeInit();
   return (USBD_OK);
-  /* USER CODE END 4 */
 }
 
 /**
@@ -281,16 +290,58 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
   */
 uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 {
-  uint8_t result = USBD_OK;
-  /* USER CODE BEGIN 7 */
-  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceFS.pClassData;
-  if (hcdc->TxState != 0){
-    return USBD_BUSY;
+  uint8_t result;
+  uint32_t primask;
+  USBD_CDC_HandleTypeDef *hcdc;
+
+  if ((Buf == NULL) || (Len == 0U))
+  {
+    return USBD_FAIL;
   }
-  USBD_CDC_SetTxBuffer(&hUsbDeviceFS, Buf, Len);
-  result = USBD_CDC_TransmitPacket(&hUsbDeviceFS);
-  /* USER CODE END 7 */
+
+  /* Serialize the state check, buffer registration, and submit against USB
+   * reset/deconfiguration ISR callbacks which may free the class handle. */
+  primask = __get_PRIMASK();
+  __disable_irq();
+  hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceFS.pClassData;
+  if ((hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED) ||
+      (hcdc == NULL) ||
+      (hUsbDeviceFS.pClassDataCmsit[hUsbDeviceFS.classId] != hcdc))
+  {
+    result = USBD_FAIL;
+  }
+  else if (hcdc->TxState != 0U)
+  {
+    result = USBD_BUSY;
+  }
+  else if (USBD_CDC_SetTxBuffer(&hUsbDeviceFS, Buf, Len) != USBD_OK)
+  {
+    result = USBD_FAIL;
+  }
+  else
+  {
+    result = USBD_CDC_TransmitPacket(&hUsbDeviceFS);
+  }
+  __set_PRIMASK(primask);
   return result;
+}
+
+uint8_t CDC_TransmitBusy_FS(void)
+{
+  uint32_t primask = __get_PRIMASK();
+  uint8_t busy = 0U;
+  USBD_CDC_HandleTypeDef *hcdc;
+
+  __disable_irq();
+  hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceFS.pClassData;
+  if ((hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED) &&
+      (hcdc != NULL) &&
+      (hUsbDeviceFS.pClassDataCmsit[hUsbDeviceFS.classId] == hcdc))
+  {
+    busy = (hcdc->TxState != 0U) ? 1U : 0U;
+  }
+  __set_PRIMASK(primask);
+  return busy;
 }
 
 /**
@@ -309,9 +360,8 @@ static int8_t CDC_TransmitCplt_FS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
 {
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 13 */
-  UNUSED(Buf);
-  UNUSED(Len);
   UNUSED(epnum);
+  UsbUpper_OnUsbTxComplete();
   /* USER CODE END 13 */
   return result;
 }
