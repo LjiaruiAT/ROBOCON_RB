@@ -1,5 +1,6 @@
 #include "Task_Init.h"
 #include "app.h"
+#include "usb_upper.h"
 uint8_t usart5_dma_buff[60];
 uint8_t usart6_dma_buff[30];
  bool is_turn_flag = 0;
@@ -32,6 +33,9 @@ void Task_Init()
 		  512, NULL,          
 		    4,
 		  &Chassis_Task_Handle);
+
+		/* 上位机 USB 协议：解析任务 + 1 ms 硬件看门狗时基 */
+		UsbUpper_Init();
 
 }
 static void Key_Parse(uint32_t key, hw_key_t *out)

@@ -1,5 +1,6 @@
 #include "app.h"
 #include "swerve.h"
+#include "usb_upper.h"
 TaskHandle_t Remote_Handle;
 TaskHandle_t Remote_Analysis_Handle;
 float Vx = 0;
@@ -209,11 +210,24 @@ void Chassis_Task(void *pvParameters)
 		float vx = -rc_cmd.vy;
 		float wz = -rc_cmd.wz;
 
-		if ((xTaskGetTickCount() - rc_cmd.tick) > pdMS_TO_TICKS(RC_TIMEOUT_MS))
+
+		/* 收到过上位机有效 0x01 后，控制权永久交给上位机。
+		   上位机掉线/急停只停车，不回退遥控器（协议安全要求）。
+		   注意：上位机数据已是标准车体系，不能再做上面的轴交换。 */
+		if (g_host_vel.valid)
 		{
-			vx = 0.0f;
-			vy = 0.0f;
-			wz = 0.0f;
+			if (UsbUpper_IsVelocityUsable())
+			{
+				vx = g_host_vel.vx;
+				vy = g_host_vel.vy;
+				wz = g_host_vel.omega;
+			}
+			else
+			{
+				vx = 0.0f;
+				vy = 0.0f;
+				wz = 0.0f;
+			}
 		}
 
 		int16_t steer_cur[SWERVE_COUNT];

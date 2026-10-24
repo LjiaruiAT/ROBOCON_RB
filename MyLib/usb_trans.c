@@ -51,13 +51,21 @@ void USB_CDC_Init(Recv_finished_cb_t recv_cb,RecvBufferOverflow_cb_t recv_overfl
     kUserData = user_data;
 
     kUsbRecvQueue = xQueueCreate(2, sizeof(uint32_t));
-    xTaskCreate(USB_RecvTask, "usb_cdc_recv", 128, NULL, 6, &kUsbRecvTaskHandle);
+    xTaskCreate(USB_RecvTask, "usb_cdc_recv", 128, NULL, 4, &kUsbRecvTaskHandle);
 }
 
 void CDC_RecvCplt_Handler(uint8_t *Buf, uint32_t *Len)
 {
-    BaseType_t pxHigherPriorityTaskWoken;
+    BaseType_t pxHigherPriorityTaskWoken = pdFALSE;
+
+    (void)Buf;
+
+    /* USB 枚举可能早于 USB_CDC_Init 创建队列，必须判空 */
+    if (kUsbRecvQueue == NULL)
+    {
+        return;
+    }
+
     xQueueSendFromISR(kUsbRecvQueue, Len, &pxHigherPriorityTaskWoken);
-		//current_cdc_pack_size=*Len;
     portYIELD_FROM_ISR(pxHigherPriorityTaskWoken);
 }

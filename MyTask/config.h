@@ -29,3 +29,11 @@
 #define SWERVE_STEER_CUR_LIMIT    10000.0f  /* M2006 转向电流限幅 */
 #define SWERVE_VESC_CUR_LIMIT     20.0f     /* VESC 行走电流限幅 (A) */
 #define SWERVE_RESET_CUR_LIMIT    2000.0f   /* 上电复位扫描时的转向电流限幅（慢速找零位） */
+
+/* ---------------- 上位机 USB 链路（protocol.md v1.4） ---------------- */
+#define HOST_VX_LIMIT       3.0f    /* 协议硬闸：vx 前向 (m/s) */
+#define HOST_VY_LIMIT       3.0f    /* 协议硬闸：vy 左向 (m/s) */
+#define HOST_OMEGA_LIMIT    5.0f    /* 协议硬闸：omega 逆时针 (rad/s) */
+#define HOST_WD_TIMEOUT_MS  300u    /* 300 ms 未收到有效 0x01 即停车 */
+#define HOST_START_TX_MS    100u    /* 0x12 发车状态重发周期 = 10 Hz */
+#define HOST_TASK_PERIOD_MS 10u     /* usb_upper 任务周期 (ms) */

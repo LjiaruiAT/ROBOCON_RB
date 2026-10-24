@@ -66,3 +66,4 @@ br\task_init.o: ..\Remote_control\comm_stm32_hal_middle.h
 br\task_init.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
 br\task_init.o: ..\MyLib\VESC.h
 br\task_init.o: ..\MyTask\app.h
+br\task_init.o: ..\MyTask\usb_upper.h

@@ -1,0 +1,120 @@
+/**
+ * @file    usb_upper.h
+ * @brief   上位机（ROS 2）USB CDC 协议接入
+ * @note    协议见 upper/Robocon27_R2/docs/protocol.md v1.4
+ *          帧格式：AA | 55(下行)/56(上行) | cmd | len | data[len] | crc_lo | crc_hi
+ *          CRC-16/Modbus，范围 = cmd + len + data，低字节在前
+ */
+#ifndef __USB_UPPER_H__
+#define __USB_UPPER_H__
+
+#include <stdint.h>
+
+/* ------------------------------------------------------------------ */
+/* 协议常量                                                            */
+/* ------------------------------------------------------------------ */
+#define HOST_FRAME_HEAD0        0xAAu
+#define HOST_FRAME_DIR_DOWN     0x55u   /* 上位机 -> 下位机 */
+#define HOST_FRAME_DIR_UP       0x56u   /* 下位机 -> 上位机 */
+#define HOST_FRAME_OVERHEAD     6u      /* 帧头2 + cmd1 + len1 + crc2 */
+#define HOST_DATA_MAX           64u
+#define HOST_FRAME_MAX          (HOST_FRAME_OVERHEAD + HOST_DATA_MAX)
+
+#define HOST_CMD_VELOCITY       0x01u
+#define HOST_CMD_ESTOP          0x02u
+#define HOST_CMD_MECH           0x03u
+#define HOST_CMD_HEARTBEAT      0x04u
+#define HOST_CMD_START_STATE    0x12u
+#define HOST_CMD_ACK            0x20u
+
+/* 各命令数据区长度（protocol.md v1.5） */
+#define HOST_LEN_VELOCITY       12u
+#define HOST_LEN_ESTOP          0u
+#define HOST_LEN_MECH           10u     /* v1.5：前 6 字节 + seq(4B) */
+#define HOST_LEN_HEARTBEAT      2u
+#define HOST_LEN_START_STATE    1u
+#define HOST_LEN_ACK            6u      /* v1.5：cmd + status + seq(4B) */
+
+/* 0x20 通用确认的 status */
+#define HOST_ST_OK              0u
+#define HOST_ST_BUSY            1u
+#define HOST_ST_CRC_ERR         2u
+#define HOST_ST_TIMEOUT         3u
+#define HOST_ST_UNKNOWN_CMD     4u
+#define HOST_ST_ESTOP           5u
+#define HOST_ST_LIMIT           6u
+
+/* ------------------------------------------------------------------ */
+/* 上位机速度指令                                                      */
+/* ------------------------------------------------------------------ */
+typedef struct
+{
+    float    vx;            /*!< 车头前向速度 (m/s)          */
+    float    vy;            /*!< 车体左向速度 (m/s)          */
+    float    omega;         /*!< 绕 +Z 角速度 (rad/s)，逆时针正 */
+    uint32_t sequence;      /*!< 每收到一条有效 0x01 递增     */
+    uint32_t last_rx_tick;  /*!< 最近一条有效 0x01 的时刻     */
+    uint8_t  valid;         /*!< 是否收到过至少一条有效 0x01  */
+} HostVelocity_t;
+
+extern volatile HostVelocity_t g_host_vel;
+
+extern volatile uint8_t  g_host_estop;      /*!< 1 = 急停闭锁中            */
+extern volatile uint8_t  g_host_timeout;    /*!< 1 = 300 ms 未收到有效 0x01 */
+
+/* 最近一条 0x03 机构指令（本期无执行器，仅记录供调试/后续接管） */
+extern volatile uint8_t  g_host_mech_id;
+extern volatile uint8_t  g_host_mech_state;
+extern volatile float    g_host_mech_param;
+extern volatile uint32_t g_host_mech_seq;
+
+/* 调试用发车开关：Watch 里改成 1 即发车，改回 0 即未发车 */
+extern volatile uint8_t  g_host_start_override;
+
+/* 接收统计，每秒刷新一次 */
+extern volatile uint32_t g_host_rx_rate;      /*!< 每秒有效速度帧数          */
+extern volatile uint32_t g_host_max_gap_ms;   /*!< 统计周期内最大帧间隔 (ms) */
+
+/* 调试计数（Keil Watch / Ozone 观察用） */
+extern volatile uint32_t g_host_rx_bytes;
+extern volatile uint32_t g_host_frame_ok;
+extern volatile uint32_t g_host_crc_err;
+extern volatile uint32_t g_host_len_err;
+extern volatile uint32_t g_host_unknown_cmd;
+extern volatile uint32_t g_host_float_err;
+extern volatile uint32_t g_host_timeout_cnt;
+
+/* ------------------------------------------------------------------ */
+/* 接口                                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * @brief 初始化上位机链路：创建任务 + 启动 1 ms 硬件看门狗定时器
+ * @note  在 Task_Init() 中调用一次（调度器已启动之后）
+ */
+void UsbUpper_Init(void);
+
+/**
+ * @brief USB CDC 接收回调，由 usb_trans 的 USB_RecvTask 调用
+ * @param src  本批原始字节
+ * @param size 本批字节数（是"批次"不是"帧"，内部按流式状态机处理）
+ * @note  运行在任务上下文，不在中断里
+ */
+void UsbUpper_OnUsbRx(uint8_t *src, uint16_t size);
+
+/**
+ * @brief 设置发车状态（0 = 未发车，1 = 发车）
+ * @note  状态变化会立即上行一帧，之后按 10 Hz 重发当前值
+ */
+void UsbUpper_SetStartState(uint8_t start);
+
+/** @brief 读取当前发车状态 */
+uint8_t UsbUpper_GetStartState(void);
+
+/**
+ * @brief 当前上位机速度是否可用于底盘控制
+ * @return 1 = 可用（已收到过有效帧、非急停、未超时）；0 = 应当停车
+ */
+uint8_t UsbUpper_IsVelocityUsable(void);
+
+#endif /* __USB_UPPER_H__ */

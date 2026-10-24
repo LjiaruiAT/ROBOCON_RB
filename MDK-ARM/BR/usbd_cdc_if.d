@@ -46,3 +46,15 @@ br\usbd_cdc_if.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
 br\usbd_cdc_if.o: ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h
 br\usbd_cdc_if.o: ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h
 br\usbd_cdc_if.o: ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h
+br\usbd_cdc_if.o: ..\MyLib\usb_trans.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+br\usbd_cdc_if.o: ../Core/Inc/FreeRTOSConfig.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
+br\usbd_cdc_if.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
