@@ -40,6 +40,9 @@ volatile uint32_t g_host_len_err;
 volatile uint32_t g_host_unknown_cmd;
 volatile uint32_t g_host_float_err;
 volatile uint32_t g_host_timeout_cnt;
+volatile uint32_t g_host_usb_init_fail;
+volatile uint32_t g_host_usb_heap_free;
+volatile uint8_t  g_host_usb_rx_ready;
 
 /* 调试用：Watch 窗口里改成 1 即发车，改回 0 即未发车 */
 volatile uint8_t  g_host_start_override = 0u;
@@ -47,6 +50,16 @@ volatile uint8_t  g_host_start_override = 0u;
 /* 接收统计：每秒自动刷新一次，Watch 里直接读，不用手数 */
 volatile uint32_t g_host_rx_rate;        /*!< 每秒有效速度帧数          */
 volatile uint32_t g_host_max_gap_ms;     /*!< 统计周期内最大帧间隔 (ms) */
+volatile uint32_t g_host_max_gap_all_ms; /*!< 上电以来最大帧间隔 (ms)，不按秒清零 */
+volatile uint32_t g_host_last_rx_ms;     /*!< 距最近一次有效 0x01 的毫秒数，实时 */
+volatile uint32_t g_host_stat_poll_cnt;  /*!< 1 s 统计窗口执行次数，验证秒窗口本身在跑 */
+volatile uint32_t g_usb_out_pps;         /*!< 每秒 CDC OUT 包数（主机真正发出来的） */
+volatile uint32_t g_usb_out_Bps;         /*!< 每秒 CDC 层字节数                        */
+volatile uint32_t g_host_ok_pps;         /*!< 每秒成功解析的帧数（含心跳等）          */
+
+static uint32_t   s_pkts_last;
+static uint32_t   s_bytes_last;
+static uint32_t   s_ok_last;
 
 static uint32_t   s_rate_cnt;
 static uint32_t   s_gap_max;
@@ -169,6 +182,7 @@ static void host_publish_velocity(float vx, float vy, float om)
     {
         uint32_t gap = now - g_host_vel.last_rx_tick;
         if (gap > s_gap_max) { s_gap_max = gap; }
+        if (gap > g_host_max_gap_all_ms) { g_host_max_gap_all_ms = gap; }
         s_rate_cnt++;
     }
     else
@@ -217,13 +231,23 @@ static void host_stat_poll(void)
 
     __disable_irq();
     now = HAL_GetTick();
+    g_host_last_rx_ms = (g_host_vel.valid != 0u)
+                      ? (uint32_t)(now - g_host_vel.last_rx_tick)
+                      : 0xFFFFFFFFu;
     if ((uint32_t)(now - s_rate_t0) >= 1000u)
     {
         g_host_rx_rate    = s_rate_cnt;
         g_host_max_gap_ms = s_gap_max;
+        g_host_ok_pps     = g_host_frame_ok - s_ok_last;
+        g_usb_out_pps     = g_usb_out_pkts - s_pkts_last;
+        g_usb_out_Bps     = g_usb_out_bytes - s_bytes_last;
+        s_ok_last         = g_host_frame_ok;
+        s_pkts_last       = g_usb_out_pkts;
+        s_bytes_last      = g_usb_out_bytes;
         s_rate_cnt = 0u;
         s_gap_max  = 0u;
         s_rate_t0  = now;
+        g_host_stat_poll_cnt++;
     }
     __set_PRIMASK(primask);
 }
@@ -415,77 +439,89 @@ static void host_dispatch(uint8_t cmd, const uint8_t *data, uint8_t len)
 /* ------------------------------------------------------------------ */
 
 /**
- * @brief 尝试从 s_frame 头部解析一帧
- * @return 0 = 数据不足，需要更多字节；>0 = 应丢弃的字节数（解析成功则为整帧长度）
+ * @brief 扫描 s_frame 已缓存的字节，消费所有能确认的帧
+ * @note  只在缓冲区头部推进 pos；CRC/长度非法时按协议回退 1 字节重找 AA。
+ *        正常路径每个字节只判定一次，且整包只做一次搬移。
  */
-static uint16_t host_try_parse(void)
+static void host_scan(void)
 {
-    uint8_t  cmd;
-    uint8_t  dlen;
+    uint16_t pos = 0u;
     uint16_t total;
     uint16_t crc_calc;
     uint16_t crc_recv;
+    uint8_t  cmd;
+    uint8_t  dlen;
 
-    if (s_frame_len < 1u)
+    for (;;)
     {
-        return 0u;
+        while ((pos < s_frame_len) && (s_frame[pos] != HOST_FRAME_HEAD0))
+        {
+            pos++;                          /* 不是帧头，逐字节丢弃 */
+        }
+        if ((uint16_t)(s_frame_len - pos) < 2u)
+        {
+            break;                          /* 连方向字节都还没到 */
+        }
+        if (s_frame[pos + 1u] != HOST_FRAME_DIR_DOWN)
+        {
+            pos++;                          /* 0x56 回显或其他方向：丢 1 字节 */
+            continue;
+        }
+        if ((uint16_t)(s_frame_len - pos) < 4u)
+        {
+            break;                          /* 还没收到 cmd/len */
+        }
+
+        cmd  = s_frame[pos + 2u];
+        dlen = s_frame[pos + 3u];
+
+        if (dlen > HOST_DATA_MAX)
+        {
+            g_host_len_err++;
+            pos++;                          /* 非法长度：丢 1 字节重新同步 */
+            continue;
+        }
+
+        total = (uint16_t)(HOST_FRAME_OVERHEAD + dlen);
+        if ((uint16_t)(s_frame_len - pos) < total)
+        {
+            break;                          /* 帧没收全，等下一字节 */
+        }
+
+        crc_calc = host_crc16(&s_frame[pos + 2u], (uint16_t)(2u + dlen));
+        crc_recv = (uint16_t)s_frame[pos + total - 2u]
+                 | (uint16_t)((uint16_t)s_frame[pos + total - 1u] << 8);
+
+        if (crc_calc != crc_recv)
+        {
+            g_host_crc_err++;
+            pos++;                          /* CRC 错误：回退 1 字节重新找 AA */
+            continue;
+        }
+
+        host_dispatch(cmd, &s_frame[pos + 4u], dlen);
+        g_host_frame_ok++;
+        pos = (uint16_t)(pos + total);
     }
 
-    if (s_frame[0] != HOST_FRAME_HEAD0)
+    /* 已确认无用的前缀一次性丢掉，避免逐帧 memmove */
+    if (pos != 0u)
     {
-        return 1u;                      /* 不是帧头，丢 1 字节 */
+        if (pos >= s_frame_len)
+        {
+            s_frame_len = 0u;
+        }
+        else
+        {
+            memmove(s_frame, &s_frame[pos], (size_t)(s_frame_len - pos));
+            s_frame_len = (uint16_t)(s_frame_len - pos);
+        }
     }
-
-    if (s_frame_len < 2u)
-    {
-        return 0u;
-    }
-
-    if (s_frame[1] != HOST_FRAME_DIR_DOWN)
-    {
-        return 1u;                      /* 0x56 回显或其他方向：丢 1 字节 */
-    }
-
-    if (s_frame_len < 4u)
-    {
-        return 0u;
-    }
-
-    cmd  = s_frame[2];
-    dlen = s_frame[3];
-
-    if (dlen > HOST_DATA_MAX)
-    {
-        g_host_len_err++;
-        return 1u;                      /* 非法长度：丢 1 字节重新同步 */
-    }
-
-    total = (uint16_t)(HOST_FRAME_OVERHEAD + dlen);
-    if (s_frame_len < total)
-    {
-        return 0u;
-    }
-
-    crc_calc = host_crc16(&s_frame[2], (uint16_t)(2u + dlen));
-    crc_recv = (uint16_t)s_frame[4u + dlen]
-             | (uint16_t)((uint16_t)s_frame[5u + dlen] << 8);
-
-    if (crc_calc != crc_recv)
-    {
-        g_host_crc_err++;
-        return 1u;                      /* CRC 错误：回退 1 字节重新找 AA */
-    }
-
-    host_dispatch(cmd, &s_frame[4], dlen);
-    g_host_frame_ok++;
-    return total;
 }
 
 static void host_feed(uint8_t byte)
 {
-    uint16_t consumed;
-
-    /* 缓冲区满且无法解析，强制清空，防止死锁 */
+    /* 防御：正常流里 s_frame_len 到不了上限（最长帧 70 B 收全即被消费） */
     if (s_frame_len >= HOST_FRAME_MAX)
     {
         s_frame_len = 0u;
@@ -493,29 +529,7 @@ static void host_feed(uint8_t byte)
 
     s_frame[s_frame_len++] = byte;
     g_host_rx_bytes++;
-
-    for (;;)
-    {
-        if (s_frame_len == 0u)
-        {
-            return;
-        }
-
-        consumed = host_try_parse();
-        if (consumed == 0u)
-        {
-            return;                     /* 数据不足，等下一字节 */
-        }
-
-        if (consumed >= s_frame_len)
-        {
-            s_frame_len = 0u;
-            return;
-        }
-
-        memmove(s_frame, &s_frame[consumed], (size_t)(s_frame_len - consumed));
-        s_frame_len = (uint16_t)(s_frame_len - consumed);
-    }
+    host_scan();
 }
 
 void UsbUpper_OnUsbRx(uint8_t *src, uint16_t size)
@@ -528,27 +542,24 @@ void UsbUpper_OnUsbRx(uint8_t *src, uint16_t size)
         return;
     }
 
+    /* src 是 usb_trans 交付的私有拷贝，s_frame 也只被本任务访问，
+       所以解析全程不需要临界区：只把原子的速度发布留在 host_publish_velocity。 */
     generation = USB_CDC_GetDeliveryGeneration();
-    taskENTER_CRITICAL();
     if (s_rx_generation != generation)
     {
-        s_frame_len = 0u;
+        s_frame_len = 0u;                   /* 新会话：丢掉上一会话的半帧 */
         s_rx_generation = generation;
     }
-    taskEXIT_CRITICAL();
 
     for (i = 0u; i < size; i++)
     {
-        /* 包的所属会话不随 reset 改变；检查与命令发布之间禁止 USB ISR。 */
-        taskENTER_CRITICAL();
-        if (generation != USB_CDC_GetGeneration())
-        {
-            s_frame_len = 0u;
-            taskEXIT_CRITICAL();
-            return;
-        }
         host_feed(src[i]);
-        taskEXIT_CRITICAL();
+    }
+
+    /* 包所属会话若在解析期间失效，半帧不能带进新会话 */
+    if (generation != USB_CDC_GetGeneration())
+    {
+        s_frame_len = 0u;
     }
 }
 
@@ -692,10 +703,7 @@ int a = 0;
 static void UsbUpper_Task(void *argument)
 {
     uint8_t usb_inited = 0u;
-if (a == 1)
-{
-s_start_state = 1;
-}
+
     (void)argument;
 
     /* 上电默认未发车，尽快让上位机看到 start=0 */
@@ -704,6 +712,10 @@ s_start_state = 1;
 
     for (;;)
     {
+			if (a == 1)
+{
+g_host_start_override = 1;
+}
         host_stat_poll();
 
         /* 任务创建失败时保留重试机会；首次 OUT 包由传输层暂存。 */
@@ -712,7 +724,13 @@ s_start_state = 1;
             if (USB_CDC_Init(UsbUpper_OnUsbRx, NULL, NULL) == pdPASS)
             {
                 usb_inited = 1u;
+                g_host_usb_rx_ready = 1u;
             }
+            else
+            {
+                g_host_usb_init_fail++;
+            }
+            g_host_usb_heap_free = (uint32_t)xPortGetFreeHeapSize();
         }
 
         /* 发车信号：调试期用 g_host_start_override，正式接入时换成 GPIO */
@@ -762,9 +780,21 @@ void UsbUpper_Init(void)
     s_rx_generation = s_txq_generation;
     s_last_start_tx = 0u;
     g_host_tx_drop  = 0u;
+    g_host_usb_init_fail = 0u;
+    g_host_usb_heap_free = 0u;
+    g_host_usb_rx_ready = 0u;
 
     g_host_rx_rate    = 0u;
     g_host_max_gap_ms = 0u;
+    g_host_max_gap_all_ms = 0u;
+    g_host_last_rx_ms = 0xFFFFFFFFu;
+    g_host_stat_poll_cnt = 0u;
+    g_usb_out_pps     = 0u;
+    g_usb_out_Bps     = 0u;
+    g_host_ok_pps     = 0u;
+    s_pkts_last       = g_usb_out_pkts;
+    s_bytes_last      = g_usb_out_bytes;
+    s_ok_last         = 0u;
     s_rate_cnt        = 0u;
     s_gap_max         = 0u;
     s_rate_t0         = HAL_GetTick();

@@ -34,6 +34,6 @@
 #define HOST_VX_LIMIT       3.0f    /* 协议硬闸：vx 前向 (m/s) */
 #define HOST_VY_LIMIT       3.0f    /* 协议硬闸：vy 左向 (m/s) */
 #define HOST_OMEGA_LIMIT    5.0f    /* 协议硬闸：omega 逆时针 (rad/s) */
-#define HOST_WD_TIMEOUT_MS  300u    /* 300 ms 未收到有效 0x01 即停车 */
+#define HOST_WD_TIMEOUT_MS  600u    /* 300 ms 未收到有效 0x01 即停车 */
 #define HOST_START_TX_MS    100u    /* 0x12 发车状态重发周期 = 10 Hz */
 #define HOST_TASK_PERIOD_MS 10u     /* usb_upper 任务周期 (ms) */

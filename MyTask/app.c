@@ -1,6 +1,7 @@
 #include "app.h"
 #include "swerve.h"
 #include "usb_upper.h"
+#include <math.h>
 TaskHandle_t Remote_Handle;
 TaskHandle_t Remote_Analysis_Handle;
 float Vx = 0;
@@ -48,6 +49,36 @@ volatile UBaseType_t chassis_stack_free = 0;
 static uint8_t s_host_unsafe;
 static uint8_t s_host_stop_pending;
 static volatile uint8_t s_drive_configured;
+
+/* ------------------------------------------------------------------ */
+/* 底盘实测速度：轮速反馈(ERPM) + 转向角反算车体 vx/vy/wz              */
+/* 每秒结算一次，用于和指令速度对比（Watch 里直接看）                   */
+/* ------------------------------------------------------------------ */
+#define CHAS_ODOM_WINDOW_MS   1000u
+
+volatile float g_chas_in_vx;        /*!< 上 1 s 平均：本轮实际下发的指令 vx (m/s) */
+volatile float g_chas_in_vy;        /*!< 上 1 s 平均：本轮实际下发的指令 vy (m/s) */
+volatile float g_chas_in_wz;        /*!< 上 1 s 平均：本轮实际下发的指令 wz (rad/s) */
+volatile float g_chas_act_vx;       /*!< 上 1 s 平均：轮速反算的实测 vx (m/s) */
+volatile float g_chas_act_vy;       /*!< 上 1 s 平均：轮速反算的实测 vy (m/s) */
+volatile float g_chas_act_wz;       /*!< 上 1 s 平均：轮速反算的实测 wz (rad/s) */
+volatile float g_chas_act_vx_now;   /*!< 本周期实测（瞬时，2 ms 刷新） */
+volatile float g_chas_act_vy_now;
+volatile float g_chas_act_wz_now;
+volatile float g_chas_wheel_mps[SWERVE_COUNT];  /*!< 单轮实测线速度 (m/s，沿当前轮向) */
+volatile float g_chas_wheel_deg[SWERVE_COUNT];  /*!< 单轮当前朝向 (deg，0=车头) */
+volatile float g_chas_distance_m;               /*!< 上电后累计行驶距离 (m) */
+volatile uint32_t g_chas_window_ms;             /*!< 上一个统计窗口实际长度 (ms) */
+volatile uint32_t g_chas_window_n;              /*!< 窗口内样本数（2 ms 周期应≈500） */
+
+static float    s_sum_in_vx;
+static float    s_sum_in_vy;
+static float    s_sum_in_wz;
+static float    s_sum_act_vx;
+static float    s_sum_act_vy;
+static float    s_sum_act_wz;
+static uint32_t s_odom_n;
+static TickType_t s_odom_t0;
 
 static uint8_t Chassis_HostUnsafe(const HostVelocitySnapshot_t *host, uint32_t now)
 {
@@ -141,8 +172,8 @@ static void Swerve_GpioInit(void)
 
 static void Swerve_Config(void)
 {
-	static const float pos_x[SWERVE_COUNT] = {  0.215f,  0.215f, -0.215f, -0.215f };
-	static const float pos_y[SWERVE_COUNT] = {  0.225f, -0.225f, -0.225f,  0.225f };
+	static const float pos_x[SWERVE_COUNT] = {  0.215f,  -0.215f, 0.215f, -0.215f };//up_left is +
+	static const float pos_y[SWERVE_COUNT] = {  -0.225f, -0.225f, -0.225f,  -0.225f };
 
 	static const uint32_t steer_id[SWERVE_COUNT] = { 0x201, 0x202, 0x203, 0x204 };
 	static const uint32_t drive_id[SWERVE_COUNT] = { 0x01, 0x02, 0x03, 0x04 };
@@ -151,6 +182,11 @@ static void Swerve_Config(void)
 	static const uint16_t        key_pin [SWERVE_COUNT] = { GPIO_PIN_4, GPIO_PIN_5, GPIO_PIN_0, GPIO_PIN_1 };
 
 	static const float dir_drive_tab[SWERVE_COUNT] = {  -1.0f, -1.0f, -1.0f,  -1.0f };
+
+
+	static const float zero_bias_tab[SWERVE_COUNT] = {
+		 45.0f, -135.0f, -135.0f,  45.0f
+	};
 
 	for (uint8_t i = 0; i < SWERVE_COUNT; i++)
 	{
@@ -170,6 +206,7 @@ static void Swerve_Config(void)
 		m->y  = pos_y[i];
 		m->steer_gear = 144.0f;       
 		m->zero_deg   = 0.0f;         
+		m->zero_bias_deg = zero_bias_tab[i];
 		m->dir_steer  = 1.0f;
 		m->dir_drive  = dir_drive_tab[i];
 		m->erpm_per_mps   = DRIVE_ERPM_PER_MPS;     
@@ -213,6 +250,105 @@ void is_turn_down(void)
 		{
 			swerve[i].drive_current = 0.0f;
 		}
+	}
+}
+
+/* 每秒结算窗口清零（进入正常控制前调用一次） */
+static void Chassis_OdomReset(void)
+{
+	s_sum_in_vx  = 0.0f;
+	s_sum_in_vy  = 0.0f;
+	s_sum_in_wz  = 0.0f;
+	s_sum_act_vx = 0.0f;
+	s_sum_act_vy = 0.0f;
+	s_sum_act_wz = 0.0f;
+	s_odom_n     = 0u;
+	s_odom_t0    = xTaskGetTickCount();
+	g_chas_distance_m = 0.0f;
+}
+
+/* 每个控制周期（2 ms）调用一次，参数是本周期真正下发给底盘的指令速度。
+   实测速度由“VESC ERPM + 转向编码器角度”逐轮合成为车体速度：
+     vix = v_i·cosθ_i，viy = v_i·sinθ_i
+   对称布局下 Σx = Σy = 0，所以直接求和就是最小二乘解。 */
+static void Chassis_OdomStep(float in_vx, float in_vy, float in_wz)
+{
+	const float inv_n = 1.0f / (float)SWERVE_COUNT;
+	const float dt_s  = (float)CHASSIS_TASK_PERIOD_MS * 0.001f;
+	float sum_vx = 0.0f;
+	float sum_vy = 0.0f;
+	float num_wz = 0.0f;
+	float den_wz = 0.0f;
+	uint32_t elapsed;
+	uint8_t i;
+
+	for (i = 0u; i < SWERVE_COUNT; i++)
+	{
+		SwerveModule_t *m = &swerve[i];
+		float mps = 0.0f;
+		float rad;
+		float vix;
+		float viy;
+
+		if (m->erpm_per_mps > 1.0f)
+		{
+			/* VESC 反馈电转速 → 轮子线速度 (m/s)；dir_drive 为 ±1 */
+			mps = ((float)m->drive.epm / m->erpm_per_mps) * m->dir_drive;
+		}
+		g_chas_wheel_mps[i] = mps;
+		g_chas_wheel_deg[i] = m->angle_deg;
+
+		rad = m->angle_deg * (PI / 180.0f);
+		vix = mps * cosf(rad);
+		viy = mps * sinf(rad);
+
+		sum_vx += vix;
+		sum_vy += viy;
+		num_wz += (m->x * viy) - (m->y * vix);
+		den_wz += (m->x * m->x) + (m->y * m->y);
+	}
+
+	g_chas_act_vx_now = sum_vx * inv_n;
+	g_chas_act_vy_now = sum_vy * inv_n;
+	g_chas_act_wz_now = (den_wz > 1.0e-6f) ? (num_wz / den_wz) : 0.0f;
+
+	g_chas_distance_m += sqrtf(g_chas_act_vx_now * g_chas_act_vx_now +
+	                           g_chas_act_vy_now * g_chas_act_vy_now) * dt_s;
+
+	s_sum_in_vx  += in_vx;
+	s_sum_in_vy  += in_vy;
+	s_sum_in_wz  += in_wz;
+	s_sum_act_vx += g_chas_act_vx_now;
+	s_sum_act_vy += g_chas_act_vy_now;
+	s_sum_act_wz += g_chas_act_wz_now;
+	s_odom_n++;
+
+	/* 每秒结算一次：输出上 1 s 的指令/实测平均值 */
+	elapsed = (uint32_t)(xTaskGetTickCount() - s_odom_t0);
+	if (elapsed >= CHAS_ODOM_WINDOW_MS)
+	{
+		if (s_odom_n > 0u)
+		{
+			const float inv = 1.0f / (float)s_odom_n;
+
+			g_chas_in_vx  = s_sum_in_vx  * inv;
+			g_chas_in_vy  = s_sum_in_vy  * inv;
+			g_chas_in_wz  = s_sum_in_wz  * inv;
+			g_chas_act_vx = s_sum_act_vx * inv;
+			g_chas_act_vy = s_sum_act_vy * inv;
+			g_chas_act_wz = s_sum_act_wz * inv;
+		}
+		g_chas_window_ms = elapsed;
+		g_chas_window_n  = s_odom_n;
+
+		s_sum_in_vx  = 0.0f;
+		s_sum_in_vy  = 0.0f;
+		s_sum_in_wz  = 0.0f;
+		s_sum_act_vx = 0.0f;
+		s_sum_act_vy = 0.0f;
+		s_sum_act_wz = 0.0f;
+		s_odom_n     = 0u;
+		s_odom_t0    = xTaskGetTickCount();
 	}
 }
 
@@ -275,6 +411,7 @@ void Chassis_Task(void *pvParameters)
 	}
 
 	chassis_stage = 3;
+	Chassis_OdomReset();
 	TickType_t last_wake = xTaskGetTickCount();
 
 	for (;;)
@@ -284,9 +421,9 @@ void Chassis_Task(void *pvParameters)
 		{
 			chassis_stack_free = uxTaskGetStackHighWaterMark(NULL);
 		}
-		float vy = -rc_cmd.vx;
-		float vx = -rc_cmd.vy;
-		float wz = -rc_cmd.wz;
+		float vy = rc_cmd.vx;
+		float vx = rc_cmd.vy;
+		float wz = rc_cmd.wz;
 
 
 		HostVelocitySnapshot_t host;
@@ -318,6 +455,9 @@ void Chassis_Task(void *pvParameters)
 			                                             SWERVE_STEER_CUR_LIMIT,
 			                                             SWERVE_VESC_CUR_LIMIT);
 		}
+
+		/* 实测速度：以本周期真正下发到轮子的指令为对比基准 */
+		Chassis_OdomStep(vx, vy, wz);
 
 		is_turn_down();
 

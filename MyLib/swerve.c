@@ -42,6 +42,7 @@ void Swerve_ModuleInit(SwerveModule_t *m)
     m->y  = 0.0f;
     m->steer_gear   = 36.0f * 4.0f;    
     m->zero_deg     = 0.0f;
+    m->zero_bias_deg = 45.0f;           /* 默认：边沿在轮子朝前偏 +45° 处 */
     m->dir_steer    = 1.0f;
     m->dir_drive    = 1.0f;
     m->erpm_per_mps = 0.0f;             
@@ -109,7 +110,9 @@ uint8_t Swerve_Reset(SwerveModule_t *m)
     if ((uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) << 4)
         != (m->reset_flag & SWERVE_RESET_LAST_LVL))
     {
-        m->zero_deg = m->steer.motor.Angle_DEG * m->dir_steer / m->steer_gear - 45.0f;
+        /* 边沿这一瞬的编码器值 → 该轮真实朝向 = zero_bias_deg（每模块单独配） */
+        m->zero_deg = m->steer.motor.Angle_DEG * m->dir_steer / m->steer_gear
+                    - m->zero_bias_deg;
         m->target_angle_deg = 0.0f;
         m->reset_flag |= SWERVE_RESET_DONE;
     }
@@ -167,20 +170,31 @@ float Swerve_ModuleControl(SwerveModule_t *m, float vx, float vy, float wz,
     float viy = vy + wz * m->x;
 
     float speed      = sqrtf(vix * vix + viy * viy);        /* 轮速大小 m/s */
-    float target_deg = atan2f(viy, vix) * 57.2957795f;      /* 目标朝向 deg */
 
     m->angle_deg = m->steer.motor.Angle_DEG * m->dir_steer / m->steer_gear - m->zero_deg;
 
-    float err = target_deg - m->angle_deg;
-    while (err >  180.0f) { err -= 360.0f; }
-    while (err < -180.0f) { err += 360.0f; }
-
-    if ((fabsf(err) > 150.0f) && (fabsf(speed) > 0.01f))
+    if (speed > 0.01f)
     {
-        err   = (err > 0.0f) ? (err - 180.0f) : (err + 180.0f);
-        speed = -speed;
+        float target_deg = atan2f(viy, vix) * 57.2957795f;  /* 目标朝向 deg */
+
+        float err = target_deg - m->angle_deg;
+        while (err >  180.0f) { err -= 360.0f; }
+        while (err < -180.0f) { err += 360.0f; }
+
+        if (fabsf(err) > 150.0f)
+        {
+            err   = (err > 0.0f) ? (err - 180.0f) : (err + 180.0f);
+            speed = -speed;
+        }
+        m->target_angle_deg = m->angle_deg + err;
     }
-    m->target_angle_deg = m->angle_deg + err;
+    else
+    {
+        /* 零速度：保持上一周期的目标角。
+           不能拿 atan2f(0,0)=0 当目标，否则被翻转支放到 ±180° 的轮子
+           会被 180° 硬掰回正前方（而且此时翻转支被 speed>0.01 关掉了）。 */
+        speed = 0.0f;
+    }
 
     m->target_erpm = speed * m->erpm_per_mps * m->dir_drive;
 

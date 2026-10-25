@@ -16,3 +16,21 @@ void Chassis_Task(void *pvParameters);
 
 /* TIM1安全路径：仅发送有界VESC零电流重试，不等待CAN邮箱。 */
 void Chassis_HostStopFromISR(uint8_t unsafe);
+
+/* ---------------- 底盘实测速度（轮速反馈反算，每秒结算） ---------------- */
+/* 对比方式：g_chas_in_* 是本秒实际下发的指令均值，g_chas_act_* 是轮速反算的实测均值。
+   两者都在车体系（前正 / 左正 / 逆时针正），单位 m/s、rad/s。 */
+extern volatile float    g_chas_in_vx;
+extern volatile float    g_chas_in_vy;
+extern volatile float    g_chas_in_wz;
+extern volatile float    g_chas_act_vx;
+extern volatile float    g_chas_act_vy;
+extern volatile float    g_chas_act_wz;
+extern volatile float    g_chas_act_vx_now;   /*!< 瞬时值（2 ms 刷新） */
+extern volatile float    g_chas_act_vy_now;
+extern volatile float    g_chas_act_wz_now;
+extern volatile float    g_chas_wheel_mps[4]; /*!< 单轮实测线速度 (m/s) */
+extern volatile float    g_chas_wheel_deg[4]; /*!< 单轮当前朝向 (deg) */
+extern volatile float    g_chas_distance_m;    /*!< 累计行驶距离 (m) */
+extern volatile uint32_t g_chas_window_ms;     /*!< 统计窗口实际长度 (ms) */
+extern volatile uint32_t g_chas_window_n;      /*!< 窗口内样本数（2 ms 周期应≈500） */

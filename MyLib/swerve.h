@@ -38,6 +38,8 @@ typedef struct
     float y;                    /*!< 安装坐标 y：左方为正 (m) */
     float steer_gear;           /*!< 转向总减速比（M2006 36 × 机构 4 = 144） */
     float zero_deg;             /*!< 零位：轮子朝正前方时的轮子角 (deg) */
+    float zero_bias_deg;        /*!< 光电门边沿触发时轮子的真实朝向 (deg，左转为正)；
+                                     镜像装配的模块与直装侧差 180°（45 / -135） */
     float dir_steer;            /*!< 转向方向系数（±1） */
     float dir_drive;            /*!< 行走方向系数（±1，轮子反装取 -1） */
     float erpm_per_mps;         /*!< 换算系数：电转速 = 轮速(m/s) × 该值 */

@@ -83,6 +83,12 @@ extern volatile uint8_t  g_host_start_override;
 /* 接收统计，每秒刷新一次 */
 extern volatile uint32_t g_host_rx_rate;      /*!< 每秒有效速度帧数          */
 extern volatile uint32_t g_host_max_gap_ms;   /*!< 统计周期内最大帧间隔 (ms) */
+extern volatile uint32_t g_host_max_gap_all_ms; /*!< 上电以来最大帧间隔 (ms) */
+extern volatile uint32_t g_host_last_rx_ms;     /*!< 距最近一次有效 0x01 的毫秒数 */
+extern volatile uint32_t g_host_stat_poll_cnt;  /*!< 1 s 统计窗口执行次数      */
+extern volatile uint32_t g_usb_out_pps;         /*!< 每秒 CDC OUT 包数         */
+extern volatile uint32_t g_usb_out_Bps;         /*!< 每秒 CDC 层字节数         */
+extern volatile uint32_t g_host_ok_pps;         /*!< 每秒成功解析的帧数        */
 
 /* 调试计数（Keil Watch / Ozone 观察用） */
 extern volatile uint32_t g_host_rx_bytes;
@@ -93,6 +99,9 @@ extern volatile uint32_t g_host_unknown_cmd;
 extern volatile uint32_t g_host_float_err;
 extern volatile uint32_t g_host_timeout_cnt;
 extern volatile uint32_t g_host_tx_drop; /*!< ACK队列满丢弃计数 */
+extern volatile uint32_t g_host_usb_init_fail; /*!< USB接收任务创建失败次数 */
+extern volatile uint32_t g_host_usb_heap_free; /*!< 最近初始化尝试后的RTOS空闲堆字节 */
+extern volatile uint8_t  g_host_usb_rx_ready;  /*!< 接收任务已创建，不代表USB当前已枚举 */
 
 /* ------------------------------------------------------------------ */
 /* 接口                                                                */

@@ -26,4 +26,14 @@ void USB_CDC_ClassInit(void);
 void USB_CDC_ClassDeInit(void);
 void CDC_RecvCplt_Handler(uint8_t *Buf, uint32_t *Len);
 
+/* 链路诊断计数：g_usb_out_* 是 USB 边界（设备真正收到的），
+ * 与上层解析计数（g_host_rx_bytes / g_host_frame_ok）对比即可定位丢包层。 */
+extern volatile uint32_t g_usb_out_pkts;      /*!< CDC OUT 回调次数         */
+extern volatile uint32_t g_usb_out_bytes;     /*!< CDC 层累计收到字节数     */
+extern volatile uint32_t g_usb_deliver_pkts;  /*!< 交给上层解析的包数       */
+extern volatile uint32_t g_usb_drop_pending;  /*!< 上一包未取走就丢的包数   */
+extern volatile uint32_t g_usb_drop_invalid;  /*!< Buf/Len 非法丢包数       */
+extern volatile uint32_t g_usb_rearm_fail;    /*!< OUT 端点重新挂载失败次数 */
+extern volatile uint32_t g_usb_reset_cnt;     /*!< 重新枚举/复位次数        */
+
 #endif
