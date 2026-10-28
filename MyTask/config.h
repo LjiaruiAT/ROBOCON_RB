@@ -14,7 +14,7 @@
 #define DRIVE_WHEEL_DIA    0.096f             /* 轮子直径 (m) */
 
 /* ERPM/(m/s) = 极对数 × 减速比 × 60 / (π × 轮径) ≈ 4641.9 */
-#define DRIVE_ERPM_PER_MPS (VESC_POLE_PAIRS * DRIVE_GEAR_RATIO * 60.0f / (PI * DRIVE_WHEEL_DIA))
+#define DRIVE_ERPM_PER_MPS ((VESC_POLE_PAIRS * DRIVE_GEAR_RATIO * 60.0f / (PI * DRIVE_WHEEL_DIA)))*2
 #define UP_VOLLEY_MOTOR_MS      1000.0f
 
 /* ---------------- 遥控器（TODO：按实车标定后填值） ---------------- */

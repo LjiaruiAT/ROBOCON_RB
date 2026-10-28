@@ -172,7 +172,7 @@ static void Swerve_GpioInit(void)
 
 static void Swerve_Config(void)
 {
-	static const float pos_x[SWERVE_COUNT] = {  0.215f,  -0.215f, 0.215f, -0.215f };//up_left is +
+	static const float pos_x[SWERVE_COUNT] = {  0.215f,  0.215f, -0.215f, -0.215f };//up_left is +
 	static const float pos_y[SWERVE_COUNT] = {  -0.225f, -0.225f, -0.225f,  -0.225f };
 
 	static const uint32_t steer_id[SWERVE_COUNT] = { 0x201, 0x202, 0x203, 0x204 };
@@ -181,7 +181,7 @@ static void Swerve_Config(void)
 	static GPIO_TypeDef * const key_port[SWERVE_COUNT] = { GPIOC, GPIOC, GPIOB, GPIOB };
 	static const uint16_t        key_pin [SWERVE_COUNT] = { GPIO_PIN_4, GPIO_PIN_5, GPIO_PIN_0, GPIO_PIN_1 };
 
-	static const float dir_drive_tab[SWERVE_COUNT] = {  -1.0f, -1.0f, -1.0f,  -1.0f };
+	static const float dir_drive_tab[SWERVE_COUNT] = {  1.0f, -1.0f, -1.0f,  1.0f };
 
 
 	static const float zero_bias_tab[SWERVE_COUNT] = {
