@@ -61,6 +61,7 @@ br\freertos.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 br\freertos.o: ..\MyLib\motor.h
 br\freertos.o: ..\MyLib\motorEx.h
 br\freertos.o: ../Core/Inc/usart.h
+br\freertos.o: ..\MyLib\JY61.h
 br\freertos.o: ..\MyLib\dataFrame.h
 br\freertos.o: ..\Remote_control\comm.h
 br\freertos.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h

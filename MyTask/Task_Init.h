@@ -12,6 +12,7 @@
 #include "motor.h"
 #include "motorEx.h"
 #include "usart.h"
+#include "JY61.h"
 #include "dataFrame.h"
 #include "comm.h"
 #include "comm_stm32_hal_middle.h"
@@ -62,7 +63,8 @@ void Remote_Analysis_Task(void *pvParameters);
 extern TaskHandle_t Remote_Analysis_Handle;
 void Remote_Analysis(void);
 extern uint8_t usart5_dma_buff[60];
-extern uint8_t usart6_dma_buff[30];
+extern uint8_t usart6_dma_buff[64];
+extern uint8_t usart4_dma_buff[64];   /* IMU（WT901） */
 
 #endif
 

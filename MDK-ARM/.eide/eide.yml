@@ -108,6 +108,8 @@ virtualFolder:
         - path: ../MyLib/PID_old.c
         - path: ../MyLib/VESC.c
         - path: ../MyLib/swerve.c
+        - path: ../MyLib/JY61.c
+        - path: ../MyLib/JY61.h
         - path: ../MyLib/usb_trans.h
       folders: []
     - name: MyTask
@@ -119,6 +121,8 @@ virtualFolder:
         - path: ../MyTask/app.h
         - path: ../MyTask/Task_Init.c
         - path: ../MyTask/Task_Init.h
+        - path: ../MyTask/yaw_hold.c
+        - path: ../MyTask/yaw_hold.h
       folders: []
     - name: Remote_control
       files:

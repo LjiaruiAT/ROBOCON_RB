@@ -181,12 +181,25 @@ float Swerve_ModuleControl(SwerveModule_t *m, float vx, float vy, float wz,
         while (err >  180.0f) { err -= 360.0f; }
         while (err < -180.0f) { err += 360.0f; }
 
-        if (fabsf(err) > 150.0f)
+        if (fabsf(err) > 90.0f)          /* 最优角：最多转 90°（标准做法，原来 150° 要多转 60°） */
         {
             err   = (err > 0.0f) ? (err - 180.0f) : (err + 180.0f);
             speed = -speed;
         }
         m->target_angle_deg = m->angle_deg + err;
+
+        /* 余弦补偿：轮子还没对准时按 cos^3 衰减轮速。
+           偏 0° 全速、偏 45° 剩 35%、偏 90° 归零 —— 天然实现"先转完向再行走"，
+           横向分力 ∝ sin(θ)·cos^3(θ)，比硬切断驱动平滑，不会边转边偏。 */
+        {
+            float a  = (err > 0.0f) ? err : -err;
+            float cs;
+
+            if (a > 90.0f) { a = 90.0f; }
+            cs = cosf(a * 0.017453293f);
+            if (cs < 0.0f) { cs = 0.0f; }
+            speed *= cs * cs * cs;
+        }
     }
     else
     {

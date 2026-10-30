@@ -59,6 +59,7 @@ br\task_init.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 br\task_init.o: ..\MyLib\motor.h
 br\task_init.o: ..\MyLib\motorEx.h
 br\task_init.o: ../Core/Inc/usart.h
+br\task_init.o: ..\MyLib\JY61.h
 br\task_init.o: ..\MyLib\dataFrame.h
 br\task_init.o: ..\Remote_control\comm.h
 br\task_init.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
@@ -66,4 +67,5 @@ br\task_init.o: ..\Remote_control\comm_stm32_hal_middle.h
 br\task_init.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
 br\task_init.o: ..\MyLib\VESC.h
 br\task_init.o: ..\MyTask\app.h
+br\task_init.o: ..\MyLib\swerve.h
 br\task_init.o: ..\MyTask\usb_upper.h

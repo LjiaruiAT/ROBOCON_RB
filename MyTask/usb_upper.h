@@ -142,4 +142,13 @@ uint8_t UsbUpper_WatchdogTick1ms(void);
 /** @brief 当前上位机速度是否可用于底盘控制（基于真实毫秒超时） */
 uint8_t UsbUpper_IsVelocityUsable(void);
 
+/** @brief 快照是否不安全（急停 / 超时） */
+uint8_t Chassis_HostUnsafe(const HostVelocitySnapshot_t *host, uint32_t now);
+
+/** @brief TIM1 1 ms：上位机不安全时给行走 VESC 补零电流 */
+void Chassis_HostStopFromISR(uint8_t unsafe);
+
+/** @brief 下发单轮行走电流（含上位机安全门控），由 Chassis_Task 调用 */
+void Chassis_SendDriveCurrent(uint8_t index);
+
 #endif /* __USB_UPPER_H__ */

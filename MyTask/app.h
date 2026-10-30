@@ -1,4 +1,5 @@
 #include "Task_Init.h"
+#include "swerve.h"
 
 /* ---------------- 舵轮底盘 ---------------- */
 
@@ -13,6 +14,15 @@ typedef struct
 extern RcCmd_t      rc_cmd;
 extern TaskHandle_t Chassis_Task_Handle;
 void Chassis_Task(void *pvParameters);
+
+extern volatile uint8_t chassis_src_host;
+void Chassis_ToggleCtrlSrc(void);
+
+extern SwerveModule_t    swerve[SWERVE_COUNT];
+extern volatile uint32_t can_tx_skip_cnt;
+extern volatile uint8_t  s_drive_configured;
+extern uint8_t           s_host_unsafe;
+extern uint8_t           s_host_stop_pending;
 
 /* TIM1安全路径：仅发送有界VESC零电流重试，不等待CAN邮箱。 */
 void Chassis_HostStopFromISR(uint8_t unsafe);

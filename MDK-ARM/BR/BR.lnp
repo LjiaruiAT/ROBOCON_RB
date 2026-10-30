@@ -58,6 +58,7 @@
 "br\pid_old.o"
 "br\vesc.o"
 "br\swerve.o"
+"br\jy61.o"
 "br\usb_upper.o"
 "br\app.o"
 "br\task_init.o"

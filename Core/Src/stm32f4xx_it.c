@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "JY61.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,7 +42,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+extern uint8_t usart4_dma_buff[64];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -320,7 +321,19 @@ void DMA1_Stream7_IRQHandler(void)
 void UART4_IRQHandler(void)
 {
   /* USER CODE BEGIN UART4_IRQn 0 */
+	/* IMU（WT901）：在中断里自己处理 IDLE，和示例工程一致，不依赖 HAL 分发 */
+	if ((__HAL_UART_GET_FLAG(&huart4, UART_FLAG_IDLE) != RESET) &&
+	    (__HAL_UART_GET_IT_SOURCE(&huart4, UART_IT_IDLE) != RESET))
+	{
+		uint16_t n = (uint16_t)(sizeof(usart4_dma_buff) - __HAL_DMA_GET_COUNTER(&hdma_uart4_rx));
 
+		HAL_UART_DMAStop(&huart4);
+		__HAL_UART_CLEAR_IDLEFLAG(&huart4);          /* DMA 已停，读 DR 不会抢数据 */
+		JY61_Receive(&JY61, usart4_dma_buff, (uint8_t)n);
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart4, usart4_dma_buff, sizeof(usart4_dma_buff));
+		__HAL_DMA_DISABLE_IT(&hdma_uart4_rx, DMA_IT_HT);
+		return;
+	}
   /* USER CODE END UART4_IRQn 0 */
   HAL_UART_IRQHandler(&huart4);
   /* USER CODE BEGIN UART4_IRQn 1 */

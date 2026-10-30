@@ -13,7 +13,7 @@
 #define DRIVE_GEAR_RATIO   3.3333f            /* 行星减速比：电机转 3.333 圈 = 轮子转 1 圈 */
 #define DRIVE_WHEEL_DIA    0.096f             /* 轮子直径 (m) */
 
-/* ERPM/(m/s) = 极对数 × 减速比 × 60 / (π × 轮径) ≈ 4641.9 */
+/* ERPM/(m/s) = 极对数 × 减速比 × 60 / (π × 轮径) ≈ 4641.9*2  */
 #define DRIVE_ERPM_PER_MPS ((VESC_POLE_PAIRS * DRIVE_GEAR_RATIO * 60.0f / (PI * DRIVE_WHEEL_DIA)))*2
 #define UP_VOLLEY_MOTOR_MS      1000.0f
 
@@ -29,6 +29,8 @@
 #define SWERVE_STEER_CUR_LIMIT    10000.0f  /* M2006 转向电流限幅 */
 #define SWERVE_VESC_CUR_LIMIT     20.0f     /* VESC 行走电流限幅 (A) */
 #define SWERVE_RESET_CUR_LIMIT    2000.0f   /* 上电复位扫描时的转向电流限幅（慢速找零位） */
+#define CHASSIS_USE_TURN_GATE     0         /* 1 = 转向未到位就清四轮驱动（硬门控）
+                                               0 = 关闭，改用 swerve.c 里的三阶余弦补偿 */
 
 /* ---------------- 上位机 USB 链路（protocol.md v1.4） ---------------- */
 #define HOST_VX_LIMIT       3.0f    /* 协议硬闸：vx 前向 (m/s) */

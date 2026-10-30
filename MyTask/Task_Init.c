@@ -2,14 +2,17 @@
 #include "app.h"
 #include "usb_upper.h"
 uint8_t usart5_dma_buff[60];
-uint8_t usart6_dma_buff[30];
+uint8_t usart6_dma_buff[64];
+uint8_t usart4_dma_buff[64];   /* IMU（WT901）：PC11 */
  bool is_turn_flag = 0;
 
 void Task_Init()
 {
 
-		__HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);
-		HAL_UART_Receive_DMA(&huart6, usart6_dma_buff, sizeof(usart6_dma_buff));
+		/* IMU（WT901）：UART4，PC10=TX / PC11=RX */
+		__HAL_UART_ENABLE_IT(&huart4, UART_IT_IDLE);
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart4, usart4_dma_buff, sizeof(usart4_dma_buff));
+		__HAL_DMA_DISABLE_IT(huart4.hdmarx, DMA_IT_HT);
 
 		__HAL_UART_ENABLE_IT(&huart5, UART_IT_IDLE);
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart5, usart5_dma_buff, sizeof(usart5_dma_buff));
@@ -27,14 +30,12 @@ void Task_Init()
 		  4, 
 		  &Remote_Analysis_Handle);
 
-		/* 舵轮底盘控制任务 */
 		xTaskCreate(Chassis_Task,
 		 "Chassis_Task",
 		  512, NULL,          
 		    4,
 		  &Chassis_Task_Handle);
 
-		/* 上位机USB协议：启用已有TIM1/HAL毫秒安全检查，不另建定时器 */
 		UsbUpper_Init();
 
 }
@@ -79,7 +80,6 @@ void Remote_Analysis(void)
         remote_Ey     =  recv_pack.rocker[1] / REMOTE_FIGER * MAX_ROBOT_VEL;
         remote_Eomega = -recv_pack.rocker[2] / REMOTE_FIGER * MAX_ROBOT_OMEGA;
 
-        /* ---- 摇杆 -> 底盘速度（含死区），供 Chassis_Task 使用 ---- */
         float r_x = recv_pack.rocker[0];
         float r_y = recv_pack.rocker[1];
         float r_w = recv_pack.rocker[2];
@@ -92,6 +92,10 @@ void Remote_Analysis(void)
         rc_cmd.vy =  r_y / RC_FULL_SCALE * CHASSIS_VEL_MAX;
         rc_cmd.wz = -r_w / RC_FULL_SCALE * CHASSIS_OMEGA_MAX;
         rc_cmd.tick = xTaskGetTickCount();
+
+        if (KEY_RISING_EDGE(Remote_Control.First, Remote_Control.Second, Left_Key_Left)) {
+            Chassis_ToggleCtrlSrc();
+        }
     }
 
     Remote_Control.Ex     = remote_Ex;

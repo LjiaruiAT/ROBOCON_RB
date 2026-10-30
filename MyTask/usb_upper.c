@@ -14,6 +14,7 @@
 #include "config.h"
 #include "usb_trans.h"
 #include "usbd_cdc_if.h"
+#include "app.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include <string.h>
@@ -695,6 +696,83 @@ uint8_t UsbUpper_IsVelocityUsable(void)
     if (snapshot.velocity.valid == 0u) { return 0u; }
     now = HAL_GetTick();
     return ((uint32_t)(now - snapshot.velocity.last_rx_tick) < HOST_WD_TIMEOUT_MS) ? 1u : 0u;
+}
+
+uint8_t Chassis_HostUnsafe(const HostVelocitySnapshot_t *host, uint32_t now)
+{
+	return ((host->estop != 0u) ||
+	        ((host->velocity.valid != 0u) &&
+	         ((host->timeout != 0u) ||
+	          ((uint32_t)(now - host->velocity.last_rx_tick) >= HOST_WD_TIMEOUT_MS)))) ? 1u : 0u;
+}
+
+/* TIM1调用；一次unsafe转换只调度一轮，邮箱满/未初始化逐tick重试。
+   HAL_OK只代表提交到CAN邮箱，零电流不是制动、也不代表物理即时停车。 */
+void Chassis_HostStopFromISR(uint8_t unsafe)
+{
+	uint8_t i;
+
+	if (chassis_src_host == 0u)
+	{
+		unsafe = 0u;
+	}
+
+	if (unsafe == 0u)
+	{
+		s_host_unsafe = 0u;
+		s_host_stop_pending = 0u;
+		return;                     /* 首次host接管前不干预遥控 */
+	}
+	if (s_host_unsafe == 0u)
+	{
+		s_host_unsafe = 1u;
+		s_host_stop_pending = (uint8_t)((1u << SWERVE_COUNT) - 1u);
+	}
+	for (i = 0u; i < SWERVE_COUNT; i++)
+	{
+		uint8_t bit = (uint8_t)(1u << i);
+		VESC_t *drive = &swerve[i].drive;
+		if ((s_host_stop_pending & bit) == 0u) { continue; }
+		if ((s_drive_configured == 0u) || (drive->hcan == NULL) || (drive->hcan != &hcan2) ||
+		    (drive->motor_id == 0u) || (hcan2.Instance != CAN2) ||
+		    (hcan2.State != HAL_CAN_STATE_LISTENING))
+		{
+			continue;
+		}
+		/* VESC_SetCurrent/HAL无等待；每tick最多四次HAL提交尝试。 */
+		if (VESC_SetCurrent(drive, 0.0f) == HAL_OK)
+		{
+			s_host_stop_pending &= (uint8_t)~bit;
+		}
+		else
+		{
+			can_tx_skip_cnt++;
+		}
+	}
+}
+
+/* 仅包住一次快照检查和一次非阻塞提交，避免TIM1与任务抢同一CAN邮箱。
+   保存/恢复PRIMASK允许安全嵌套；不在临界区执行PID或等待邮箱。 */
+void Chassis_SendDriveCurrent(uint8_t index)
+{
+	HostVelocitySnapshot_t host;
+	uint32_t primask;
+	VESC_t *drive = &swerve[index].drive;
+
+	primask = __get_PRIMASK();
+	__disable_irq();
+	(void)UsbUpper_GetVelocitySnapshot(&host);
+	if (((chassis_src_host == 0u) || (Chassis_HostUnsafe(&host, HAL_GetTick()) == 0u)) &&
+	    (s_drive_configured != 0u) && (drive->hcan == &hcan2) &&
+	    (drive->motor_id != 0u) && (hcan2.Instance == CAN2) &&
+	    (hcan2.State == HAL_CAN_STATE_LISTENING))
+	{
+		if (VESC_SetCurrent(drive, swerve[index].drive_current) != HAL_OK)
+		{
+			can_tx_skip_cnt++;
+		}
+	}
+	__set_PRIMASK(primask);
 }
 int a = 0;
 /* ------------------------------------------------------------------ */

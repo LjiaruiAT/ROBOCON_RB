@@ -67,10 +67,12 @@ br\main.o: ..\MyLib\PID_old.h
 br\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 br\main.o: ..\MyLib\motor.h
 br\main.o: ..\MyLib\motorEx.h
+br\main.o: ..\MyLib\JY61.h
 br\main.o: ..\MyLib\dataFrame.h
 br\main.o: ..\Remote_control\comm.h
 br\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 br\main.o: ..\Remote_control\comm_stm32_hal_middle.h
 br\main.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
 br\main.o: ..\MyLib\VESC.h
+br\main.o: ..\MyLib\swerve.h
 br\main.o: ..\MyTask\usb_upper.h

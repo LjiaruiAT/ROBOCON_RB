@@ -36,3 +36,4 @@ br\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd.h
 br\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
 br\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
 br\stm32f4xx_it.o: ../Core/Inc/stm32f4xx_it.h
+br\stm32f4xx_it.o: ..\MyLib\JY61.h
