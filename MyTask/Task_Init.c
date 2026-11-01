@@ -1,6 +1,7 @@
 #include "Task_Init.h"
 #include "app.h"
 #include "usb_upper.h"
+#include "Gantry.h"
 uint8_t usart5_dma_buff[60];
 uint8_t usart6_dma_buff[64];
 uint8_t usart4_dma_buff[64];   /* IMU（WT901）：PC11 */
@@ -35,6 +36,12 @@ void Task_Init()
 		  512, NULL,          
 		    4,
 		  &Chassis_Task_Handle);
+
+          		xTaskCreate(Gantry_Task,
+		 "Gantry_Task",
+		  512, NULL,          
+		    4,
+		  &Gantry_Task_Handle);
 
 		UsbUpper_Init();
 

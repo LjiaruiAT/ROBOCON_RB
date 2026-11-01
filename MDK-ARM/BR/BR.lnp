@@ -63,6 +63,7 @@
 "br\app.o"
 "br\task_init.o"
 "br\yaw_hold.o"
+"br\gantry.o"
 "br\comm.o"
 "br\comm_stm32_hal_middle.o"
 "br\data_poll.o"

@@ -784,6 +784,16 @@
               <FileType>5</FileType>
               <FilePath>..\MyTask\yaw_hold.h</FilePath>
             </File>
+            <File>
+              <FileName>Gantry.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MyTask\Gantry.c</FilePath>
+            </File>
+            <File>
+              <FileName>Gantry.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\MyTask\Gantry.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
