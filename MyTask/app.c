@@ -158,7 +158,7 @@ static void Swerve_Config(void)
 		m->dir_steer  = 1.0f;
 		m->dir_drive  = dir_drive_tab[i];
 		m->erpm_per_mps   = DRIVE_ERPM_PER_MPS;     
-		m->steer_deadband = 0.8f;
+		m->steer_deadband = 2.0f;
 
 		m->steer.pos_pid.Kp = 2.0f;    
 		m->steer.pos_pid.Ki = 0.0f;
@@ -174,8 +174,8 @@ static void Swerve_Config(void)
 
 		m->drive_pid.Kp = 0.005f;     
 		m->drive_pid.Ki = 0.00005f;
-		m->drive_pid.Kd = 0.02f;
-		m->drive_pid.limit = 50000.0f;
+		m->drive_pid.Kd = 0.0f;
+		m->drive_pid.limit = 10000.0f;   /* 积分权限 = 0.0005×10000 = 5 A，原来是 25 A 过大 */
 		m->drive_pid.output_limit = 30.0f;
 	}
 	s_drive_configured = 1u; /* 发布完整配置；此前TIM1只保留pending、不发送 */
@@ -348,20 +348,21 @@ void Chassis_Task(void *pvParameters)
 		{
 			chassis_stack_free = uxTaskGetStackHighWaterMark(NULL);
 		}
-		float vy = rc_cmd.vx;
-		float vx = rc_cmd.vy;
-		float wz = rc_cmd.wz;
-
+		float vx;
+		float vy;
+		float wz;
 
 		HostVelocitySnapshot_t host;
 		(void)UsbUpper_GetVelocitySnapshot(&host);
 
-		/* 收到过上位机有效0x01后，控制权永久交给上位机。
-		   掉线/急停只停车，不回退遥控器；急停独立于valid生效。 */
-		if ((chassis_src_host != 0u) &&
-		    ((host.velocity.valid != 0u) || (host.estop != 0u)))
+		/* 控制源由「左遥控左键」切换：按一次切到上位机并永久保持，再按一次切回遥控。
+		     chassis_src_host = 0 -> 遥控
+		     chassis_src_host = 1 -> 上位机，期间完全屏蔽遥控；
+		                             上位机没数据 / 掉线 / 急停 -> 一律停车，不回退遥控 */
+		if (chassis_src_host != 0u)
 		{
-			if (Chassis_HostUnsafe(&host, HAL_GetTick()) == 0u)
+			if ((host.velocity.valid != 0u) &&
+			    (Chassis_HostUnsafe(&host, HAL_GetTick()) == 0u))
 			{
 				vx = host.velocity.vx;
 				vy = host.velocity.vy;
@@ -373,6 +374,13 @@ void Chassis_Task(void *pvParameters)
 				vy = 0.0f;
 				wz = 0.0f;
 			}
+		}
+		else
+		{
+			/* 遥控通道与车体轴的映射在此交换（沿用原实现） */
+			vy = rc_cmd.vx;
+			vx = rc_cmd.vy;
+			wz = rc_cmd.wz;
 		}
 
 		/* 角速度内环：让实测 ω 跟随指令 ω，消除直行跑偏 */
