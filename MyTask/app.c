@@ -4,6 +4,7 @@
 #include "JY61.h"
 #include "yaw_hold.h"
 #include <math.h>
+#include "Gantry.h"
 TaskHandle_t Remote_Handle;
 TaskHandle_t Remote_Analysis_Handle;
 float Vx = 0;
@@ -440,6 +441,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	Motor2006Recv(&swerve[1].steer, hcan, ID, Recv);
 	Motor2006Recv(&swerve[2].steer, hcan, ID, Recv);
 	Motor2006Recv(&swerve[3].steer, hcan, ID, Recv);
+	Motor3508Recv(&g_gantry_3508, hcan, ID, Recv);
 }
 void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {

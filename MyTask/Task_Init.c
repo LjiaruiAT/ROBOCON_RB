@@ -39,7 +39,7 @@ void Task_Init()
 
           		xTaskCreate(Gantry_Task,
 		 "Gantry_Task",
-		  512, NULL,          
+		  128, NULL,          
 		    4,
 		  &Gantry_Task_Handle);
 
