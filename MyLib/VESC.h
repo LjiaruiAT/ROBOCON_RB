@@ -52,6 +52,7 @@ typedef struct
     int32_t epm;
     float current;
     float duty_cycle;
+    volatile uint32_t status_cnt;
 
     struct{
         float consume_ah;

@@ -81,7 +81,7 @@ static volatile uint8_t  s_start_dirty;
 
 /* 事件回执队列；0x12 只保留最新状态，不占用回执容量。 */
 #define HOST_TXQ_DEPTH      16u
-#define HOST_TX_ITEM_MAX    16u
+#define HOST_TX_ITEM_MAX    32u
 
 typedef struct
 {
@@ -101,6 +101,24 @@ static uint8_t      s_tx_buf[HOST_TX_ITEM_MAX];
 static uint8_t      s_tx_len;
 static uint32_t     s_tx_generation;
 static uint32_t     s_rx_generation;
+
+typedef struct
+{
+    float    vx;
+    float    vy;
+    float    wz;
+    uint32_t gen;
+} ChassisVel_t;
+
+static ChassisVel_t s_chas_vel;
+static uint8_t      s_chas_vel_new;
+static uint32_t     s_tx_vel_gen;
+static uint8_t      s_tx_is_vel;
+
+volatile uint32_t   g_host_vel_upd_cnt;
+volatile uint32_t   g_host_vel_tx_cnt;
+volatile uint32_t   g_host_vel_tx_bad;
+
 volatile uint32_t   g_host_tx_drop;
 
 static void host_tx_wake(void)
@@ -585,6 +603,26 @@ static uint8_t host_build_start_frame(uint8_t *out)
     return (uint8_t)(HOST_FRAME_OVERHEAD + HOST_LEN_START_STATE);
 }
 
+static uint8_t host_build_chassis_vel_frame(uint8_t *out, float vx, float vy, float wz)
+{
+    uint16_t crc;
+
+    out[0] = HOST_FRAME_HEAD0;
+    out[1] = HOST_FRAME_DIR_UP;
+    out[2] = HOST_CMD_CHASSIS_VEL;
+    out[3] = HOST_LEN_CHASSIS_VEL;
+
+    memcpy(&out[4],  &vx, sizeof(float));
+    memcpy(&out[8],  &vy, sizeof(float));
+    memcpy(&out[12], &wz, sizeof(float));
+
+    crc = host_crc16(&out[2], (uint16_t)(2u + HOST_LEN_CHASSIS_VEL));
+    out[16] = (uint8_t)(crc & 0xFFu);
+    out[17] = (uint8_t)(crc >> 8);
+
+    return (uint8_t)(HOST_FRAME_OVERHEAD + HOST_LEN_CHASSIS_VEL);
+}
+
 static void host_tx_poll(void)
 {
     TickType_t now = xTaskGetTickCount();
@@ -615,16 +653,43 @@ static void host_tx_poll(void)
     if (s_tx_pending == 0u)
     {
         s_tx_is_start = 0u;
+        s_tx_is_vel   = 0u;
         if (host_txq_pop() == 0u)
         {
-            if ((s_start_dirty == 0u) &&
-                ((now - s_last_start_tx) < pdMS_TO_TICKS(HOST_START_TX_MS)))
+            uint8_t  start_due = (uint8_t)((s_start_dirty != 0u) ||
+                ((now - s_last_start_tx) >= pdMS_TO_TICKS(HOST_START_TX_MS)));
+            uint8_t  vel_due   = (s_chas_vel_new != 0u) ? 1u : 0u;
+
+            if ((start_due == 0u) && (vel_due == 0u))
             {
                 taskEXIT_CRITICAL();
                 return;
             }
-            s_tx_len = host_build_start_frame(s_tx_buf);
-            s_tx_is_start = 1u;
+
+            if (start_due != 0u)
+            {
+                s_tx_len = host_build_start_frame(s_tx_buf);
+                s_tx_is_start = 1u;
+            }
+            else
+            {
+                float vx = s_chas_vel.vx;
+                float vy = s_chas_vel.vy;
+                float wz = s_chas_vel.wz;
+
+                if ((host_is_finite(vx) == 0u) ||
+                    (host_is_finite(vy) == 0u) ||
+                    (host_is_finite(wz) == 0u))
+                {
+                    vx = 0.0f;
+                    vy = 0.0f;
+                    wz = 0.0f;
+                    g_host_vel_tx_bad++;
+                }
+                s_tx_len = host_build_chassis_vel_frame(s_tx_buf, vx, vy, wz);
+                s_tx_is_vel  = 1u;
+                s_tx_vel_gen = s_chas_vel.gen;
+            }
         }
         s_tx_pending = 1u;
     }
@@ -637,6 +702,14 @@ static void host_tx_poll(void)
         {
             s_last_start_tx = now;
             s_start_dirty = (s_tx_buf[4] != (s_start_state & 0x01u)) ? 1u : 0u;
+        }
+        else if (s_tx_is_vel != 0u)
+        {
+            g_host_vel_tx_cnt++;
+            if (s_chas_vel.gen == s_tx_vel_gen)
+            {
+                s_chas_vel_new = 0u;
+            }
         }
     }
     taskEXIT_CRITICAL();
@@ -657,6 +730,20 @@ void UsbUpper_SetStartState(uint8_t start)
 uint8_t UsbUpper_GetStartState(void)
 {
     return (uint8_t)s_start_state;
+}
+
+void UsbUpper_UpdateChassisVel(float vx, float vy, float wz)
+{
+    taskENTER_CRITICAL();
+    s_chas_vel.vx   = vx;
+    s_chas_vel.vy   = vy;
+    s_chas_vel.wz   = wz;
+    s_chas_vel.gen++;
+    s_chas_vel_new  = 1u;
+    taskEXIT_CRITICAL();
+
+    g_host_vel_upd_cnt++;
+    host_tx_wake();
 }
 
 /** Copy the complete command and safety state as one interrupt-atomic snapshot. */
@@ -844,6 +931,17 @@ void UsbUpper_Init(void)
     g_host_mech_state = 0u;
     g_host_mech_param = 0.0f;
     g_host_mech_seq   = 0u;
+
+    s_chas_vel.vx    = 0.0f;
+    s_chas_vel.vy    = 0.0f;
+    s_chas_vel.wz    = 0.0f;
+    s_chas_vel.gen   = 0u;
+    s_chas_vel_new   = 0u;
+    s_tx_vel_gen     = 0u;
+    s_tx_is_vel      = 0u;
+    g_host_vel_upd_cnt   = 0u;
+    g_host_vel_tx_cnt    = 0u;
+    g_host_vel_tx_bad    = 0u;
 
     s_frame_len     = 0u;
     s_start_state   = 0u;

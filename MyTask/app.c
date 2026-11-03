@@ -100,6 +100,7 @@ static float    s_sum_act_vy;
 static float    s_sum_act_wz;
 static uint32_t s_odom_n;
 static TickType_t s_odom_t0;
+static uint32_t s_vesc_status_seen[SWERVE_COUNT];
 
 static void Swerve_GpioInit(void)
 {
@@ -239,6 +240,29 @@ static void Chassis_OdomStep(float in_vx, float in_vy, float in_wz)
 	g_chas_act_vx_now = sum_vx * inv_n;
 	g_chas_act_vy_now = sum_vy * inv_n;
 	g_chas_act_wz_now = (den_wz > 1.0e-6f) ? (num_wz / den_wz) : 0.0f;
+
+	{
+		uint8_t all_new = 1u;
+
+		for (i = 0u; i < SWERVE_COUNT; i++)
+		{
+			if (swerve[i].drive.status_cnt == s_vesc_status_seen[i])
+			{
+				all_new = 0u;
+				break;
+			}
+		}
+		if (all_new != 0u)
+		{
+			for (i = 0u; i < SWERVE_COUNT; i++)
+			{
+				s_vesc_status_seen[i] = swerve[i].drive.status_cnt;
+			}
+			UsbUpper_UpdateChassisVel(g_chas_act_vx_now,
+			                          g_chas_act_vy_now,
+			                          g_chas_act_wz_now);
+		}
+	}
 
 	g_chas_distance_m += sqrtf(g_chas_act_vx_now * g_chas_act_vx_now +
 	                           g_chas_act_vy_now * g_chas_act_vy_now) * dt_s;

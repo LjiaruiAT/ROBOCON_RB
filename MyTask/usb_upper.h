@@ -25,6 +25,7 @@
 #define HOST_CMD_MECH           0x03u
 #define HOST_CMD_HEARTBEAT      0x04u
 #define HOST_CMD_START_STATE    0x12u
+#define HOST_CMD_CHASSIS_VEL    0x13u
 #define HOST_CMD_ACK            0x20u
 
 /* 各命令数据区长度（protocol.md v1.5） */
@@ -33,6 +34,7 @@
 #define HOST_LEN_MECH           10u     /* v1.5：前 6 字节 + seq(4B) */
 #define HOST_LEN_HEARTBEAT      2u
 #define HOST_LEN_START_STATE    1u
+#define HOST_LEN_CHASSIS_VEL    12u
 #define HOST_LEN_ACK            6u      /* v1.5：cmd + status + seq(4B) */
 
 /* 0x20 通用确认的 status */
@@ -103,6 +105,10 @@ extern volatile uint32_t g_host_usb_init_fail; /*!< USB接收任务创建失败�
 extern volatile uint32_t g_host_usb_heap_free; /*!< 最近初始化尝试后的RTOS空闲堆字节 */
 extern volatile uint8_t  g_host_usb_rx_ready;  /*!< 接收任务已创建，不代表USB当前已枚举 */
 
+extern volatile uint32_t g_host_vel_upd_cnt;
+extern volatile uint32_t g_host_vel_tx_cnt;
+extern volatile uint32_t g_host_vel_tx_bad;
+
 /* ------------------------------------------------------------------ */
 /* 接口                                                                */
 /* ------------------------------------------------------------------ */
@@ -132,6 +138,8 @@ void UsbUpper_SetStartState(uint8_t start);
 
 /** @brief 读取当前发车状态 */
 uint8_t UsbUpper_GetStartState(void);
+
+void UsbUpper_UpdateChassisVel(float vx, float vy, float wz);
 
 /** @brief 复制一致的速度、安全标志和毫秒时间戳快照，返回非零表示已读 */
 uint8_t UsbUpper_GetVelocitySnapshot(HostVelocitySnapshot_t *out);
