@@ -69,3 +69,4 @@ br\task_init.o: ..\MyLib\VESC.h
 br\task_init.o: ..\MyTask\app.h
 br\task_init.o: ..\MyLib\swerve.h
 br\task_init.o: ..\MyTask\usb_upper.h
+br\task_init.o: ..\MyTask\Gantry.h

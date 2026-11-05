@@ -17,6 +17,11 @@
 #define SWERVE_RESET_RUNNING    0x20u  
 #define SWERVE_RESET_LAST_LVL   0x10u   /*!< 上一次的光电门电平（跳变检测用） */
 #define SWERVE_RESET_DONE       0x80u   /*!< 复位完成（已找到零位） */
+#define SWERVE_RESET_FAIL       0x40u   /*!< 复位超出行程仍未找到零位 */
+#define SWERVE_RESET_BACK       0x01u   /*!< 扫描已掉头一次 */
+#define SWERVE_RESET_DIRN       0x02u   /*!< 扫描方向：1 正向、0 反向 */
+#define SWERVE_RESET_LIMIT_DEG  180.0f  /*!< 复位扫描最大行程（防止绕圈绞线） */
+#define SWERVE_STEER_LIMIT_DEG   95.0f  /*!< 正常行驶时舵向目标绝对上限（硬软限位） */
 
 /**
  * @brief 单个舵轮模块（一个实例 = 一个舵轮）

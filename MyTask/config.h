@@ -6,7 +6,7 @@
 #define WHEEL_RADIUS       0.048f             /* 轮子半径 (m)：直径 96mm */
 #define ANGLE2RAD(x)       ((x) * PI / 180.0f)
 #define KEY_RISING_EDGE(cur, last, field)  ((cur.field == 1) && (last.field == 0))
-#define VESC_POLE_PAIRS    7                  /* 电机极对数（磁铁片数 / 2） */
+#define VESC_POLE_PAIRS    14                  /* 电机极对数（磁铁片数 / 2） */
 #define VESC_POLE_MAGNETS  14                 /* 磁铁片数：VESC Tool 里 Motor Poles 填这个 */
 
 /* ---------------- 行走电机换算（5055 + 行星减速 + 96mm 轮） ---------------- */
@@ -14,7 +14,7 @@
 #define DRIVE_WHEEL_DIA    0.096f             /* 轮子直径 (m) */
 
 /* ERPM/(m/s) = 极对数 × 减速比 × 60 / (π × 轮径) ≈ 4641.9*2  */
-#define DRIVE_ERPM_PER_MPS ((VESC_POLE_PAIRS * DRIVE_GEAR_RATIO * 60.0f / (PI * DRIVE_WHEEL_DIA)))*2
+#define DRIVE_ERPM_PER_MPS ((VESC_POLE_PAIRS * DRIVE_GEAR_RATIO * 60.0f / (PI * DRIVE_WHEEL_DIA)))
 #define UP_VOLLEY_MOTOR_MS      1000.0f
 
 /* ---------------- 遥控器（TODO：按实车标定后填值） ---------------- */
@@ -22,7 +22,7 @@
 #define RC_DEADZONE         50.0f      /* 摇杆死区（原始值，回中偏置之内） */
 #define RC_TIMEOUT_MS       200        /* 遥控失联判定 (ms) */
 #define CHASSIS_VEL_MAX     2.0f       /* 遥控最大线速度 (m/s) */
-#define CHASSIS_OMEGA_MAX   9.0f       /* 遥控最大自转速度 (rad/s) */
+#define CHASSIS_OMEGA_MAX   4.5f       /* 遥控最大自转速度 (rad/s) */
 
 /* ---------------- 舵轮底盘（TODO：按实车标定后填值） ---------------- */
 #define CHASSIS_TASK_PERIOD_MS    2         /* 舵轮控制周期 (ms) */

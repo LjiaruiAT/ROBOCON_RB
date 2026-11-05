@@ -69,10 +69,28 @@ float Swerve_SteerLoop(SwerveModule_t *m, float steer_cur_limit)
         return 0.0f;
     }
 
+    float err_deg;
+
     m->angle_deg = m->steer.motor.Angle_DEG * m->dir_steer / m->steer_gear - m->zero_deg;
 
-    float target_rotor_deg = (m->target_angle_deg + m->zero_deg)
-                           * m->steer_gear / m->dir_steer;
+    if ((m->reset_flag & SWERVE_RESET_DONE) != 0u)
+    {
+        if (m->target_angle_deg > SWERVE_STEER_LIMIT_DEG)
+        {
+            m->target_angle_deg = SWERVE_STEER_LIMIT_DEG;
+        }
+        if (m->target_angle_deg < -SWERVE_STEER_LIMIT_DEG)
+        {
+            m->target_angle_deg = -SWERVE_STEER_LIMIT_DEG;
+        }
+    }
+
+    err_deg = m->target_angle_deg - m->angle_deg;
+    while (err_deg >  180.0f) { err_deg -= 360.0f; }
+    while (err_deg < -180.0f) { err_deg += 360.0f; }
+
+    float target_rotor_deg = m->steer.motor.Angle_DEG
+                           + err_deg * m->steer_gear / m->dir_steer;
 
     PID_Control2(m->steer.motor.Angle_DEG, target_rotor_deg, &m->steer.pos_pid);
     PID_Control2((float)m->steer.motor.Speed, m->steer.pos_pid.pid_out, &m->steer.vel_pid);
@@ -87,28 +105,53 @@ float Swerve_SteerLoop(SwerveModule_t *m, float steer_cur_limit)
 
 uint8_t Swerve_Reset(SwerveModule_t *m)
 {
+    uint8_t lvl;
+
     if (m == NULL)
     {
         return 0u;
     }
 
+    if (m->reset_flag & SWERVE_RESET_DONE)
+    {
+        return 1u;
+    }
+
+    if (m->reset_flag & SWERVE_RESET_FAIL)
+    {
+        return 0u;
+    }
+
+    lvl = (uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) ? 1u : 0u);
+
     if (!(m->reset_flag & SWERVE_RESET_RUNNING))
     {
         m->reset_flag |= SWERVE_RESET_RUNNING;
-        m->reset_flag |= (uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) << 4);
+        m->reset_flag |= (uint8_t)(lvl << 4);
+        m->reset_flag &= (uint8_t)~SWERVE_RESET_BACK;
+
+        if (lvl == 0u)
+        {
+            m->reset_flag |= SWERVE_RESET_DIRN;
+        }
+        else
+        {
+            m->reset_flag &= (uint8_t)~SWERVE_RESET_DIRN;
+        }
+
+        m->target_angle_deg = 0.0f;
     }
 
-    if (HAL_GPIO_ReadPin(m->key_port, m->key_pin))
-    {
-        m->target_angle_deg -= m->reset_step_deg;
-    }
-    else
+    if (m->reset_flag & SWERVE_RESET_DIRN)
     {
         m->target_angle_deg += m->reset_step_deg;
     }
+    else
+    {
+        m->target_angle_deg -= m->reset_step_deg;
+    }
 
-    if ((uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) << 4)
-        != (m->reset_flag & SWERVE_RESET_LAST_LVL))
+    if ((uint8_t)(lvl << 4) != (m->reset_flag & SWERVE_RESET_LAST_LVL))
     {
         /* 边沿这一瞬的编码器值 → 该轮真实朝向 = zero_bias_deg（每模块单独配） */
         m->zero_deg = m->steer.motor.Angle_DEG * m->dir_steer / m->steer_gear
@@ -116,9 +159,23 @@ uint8_t Swerve_Reset(SwerveModule_t *m)
         m->target_angle_deg = 0.0f;
         m->reset_flag |= SWERVE_RESET_DONE;
     }
+    else if ((m->target_angle_deg >  SWERVE_RESET_LIMIT_DEG) ||
+             (m->target_angle_deg < -SWERVE_RESET_LIMIT_DEG))
+    {
+        if (!(m->reset_flag & SWERVE_RESET_BACK))
+        {
+            m->reset_flag |= SWERVE_RESET_BACK;
+            m->reset_flag ^= SWERVE_RESET_DIRN;
+        }
+        else
+        {
+            m->reset_flag |= SWERVE_RESET_FAIL;
+            m->target_angle_deg = m->angle_deg;
+        }
+    }
 
     m->reset_flag = (uint8_t)((m->reset_flag & ~SWERVE_RESET_LAST_LVL)
-                              | (uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) << 4));
+                              | (uint8_t)(lvl << 4));
 
     return (m->reset_flag & SWERVE_RESET_DONE) ? 1u : 0u;
 }
@@ -143,11 +200,18 @@ void Swerve_SetZero(SwerveModule_t *m)
 
 uint8_t Swerve_IsAligned(const SwerveModule_t *m)
 {
+    float err;
+
     if (m == NULL)
     {
         return 0u;
     }
-    return (fabsf(m->target_angle_deg - m->angle_deg) < m->steer_deadband) ? 1u : 0u;
+
+    err = m->target_angle_deg - m->angle_deg;
+    while (err >  180.0f) { err -= 360.0f; }
+    while (err < -180.0f) { err += 360.0f; }
+
+    return (fabsf(err) < m->steer_deadband) ? 1u : 0u;
 }
 
 
@@ -175,18 +239,46 @@ float Swerve_ModuleControl(SwerveModule_t *m, float vx, float vy, float wz,
 
     if (speed > 0.01f)
     {
-        float target_deg = atan2f(viy, vix) * 57.2957795f;  /* 目标朝向 deg */
+        float base_deg = atan2f(viy, vix) * 57.2957795f;  /* 目标朝向 deg */
+        float cand_deg;
+        float alt_deg;
+        float err;
+        float err_alt;
 
-        float err = target_deg - m->angle_deg;
-        while (err >  180.0f) { err -= 360.0f; }
-        while (err < -180.0f) { err += 360.0f; }
-
-        if (fabsf(err) > 90.0f)          /* 最优角：最多转 90°（标准做法，原来 150° 要多转 60°） */
+        cand_deg = base_deg;
+        if (cand_deg > SWERVE_STEER_LIMIT_DEG)
         {
-            err   = (err > 0.0f) ? (err - 180.0f) : (err + 180.0f);
+            cand_deg -= 180.0f;
             speed = -speed;
         }
-        m->target_angle_deg = m->angle_deg + err;
+        else if (cand_deg < -SWERVE_STEER_LIMIT_DEG)
+        {
+            cand_deg += 180.0f;
+            speed = -speed;
+        }
+
+        alt_deg = cand_deg + 180.0f;
+        while (alt_deg >  180.0f) { alt_deg -= 360.0f; }
+        while (alt_deg < -180.0f) { alt_deg += 360.0f; }
+
+        err     = cand_deg - m->angle_deg;
+        err_alt = alt_deg  - m->angle_deg;
+        while (err     >  180.0f) { err     -= 360.0f; }
+        while (err     < -180.0f) { err     += 360.0f; }
+        while (err_alt >  180.0f) { err_alt -= 360.0f; }
+        while (err_alt < -180.0f) { err_alt += 360.0f; }
+
+        if ((fabsf(alt_deg) <= SWERVE_STEER_LIMIT_DEG) &&
+            ((fabsf(err_alt) + 10.0f) < fabsf(err)))
+        {
+            m->target_angle_deg = alt_deg;
+            err   = err_alt;
+            speed = -speed;
+        }
+        else
+        {
+            m->target_angle_deg = cand_deg;
+        }
 
         /* 余弦补偿：轮子还没对准时按 cos^3 衰减轮速。
            偏 0° 全速、偏 45° 剩 35%、偏 90° 归零 —— 天然实现"先转完向再行走"，
