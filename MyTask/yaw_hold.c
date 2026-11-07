@@ -102,20 +102,38 @@ float WzLoop_Update(float wz_cmd, float vmag, float w_model, float dt)
         return 0.0f;                 /* IMU 不可用时不干预，退回纯开环 */
     }
 
-    /* ============ 2. 角速度环 ============ */
-    w_meas = WZLOOP_GYRO_SIGN * JY61.AngularVelocity.Z * WZ_DEG2RAD;
-    e      = wz_cmd - w_meas;
 
-    s_i += WZLOOP_KI * e * dt;
-    s_i  = wz_clamp(s_i, WZLOOP_I_MAX);
+/* ============ 2. 角速度环 ============ */
+w_meas = WZLOOP_GYRO_SIGN * JY61.AngularVelocity.Z * WZ_DEG2RAD;
+e      = wz_cmd - w_meas;
 
-    corr = WZLOOP_KP * e + s_i;
-    corr = wz_clamp(corr, WZLOOP_CORR_MAX);
+/* 1. 计算比例项 */
+float p = WZLOOP_KP * e;
 
-    g_wz_corr = corr;
-    g_wz_err  = e;
-    g_wz_meas = w_meas;
-    g_wz_ok   = 1u;
+/* 2. 预测下一次积分值 */
+float i_next = s_i + WZLOOP_KI * e * dt;
+
+/* 3. 积分限幅 */
+i_next = wz_clamp(i_next, WZLOOP_I_MAX);
+
+/* 4. 预测 PI 输出 */
+float corr_test = p + i_next;
+
+/* 5. 条件积分：防止积分饱和 */
+if ((fabsf(corr_test) < WZLOOP_CORR_MAX) ||
+    (corr_test >= WZLOOP_CORR_MAX && e < 0.0f) ||
+    (corr_test <= -WZLOOP_CORR_MAX && e > 0.0f))
+{
+    s_i = i_next;
+}
+
+/* 6. 最终输出限幅 */
+corr = wz_clamp(p + s_i, WZLOOP_CORR_MAX);
+
+g_wz_corr = corr;
+g_wz_err  = e;
+g_wz_meas = w_meas;
+g_wz_ok   = 1u;
 
     /* ============ 3. 残差自动标定（第二层） ============ */
 #if (WZLOOP_TRIM_EN != 0)

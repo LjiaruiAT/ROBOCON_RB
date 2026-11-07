@@ -122,36 +122,24 @@ uint8_t Swerve_Reset(SwerveModule_t *m)
         return 0u;
     }
 
-    lvl = (uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) ? 1u : 0u);
-
     if (!(m->reset_flag & SWERVE_RESET_RUNNING))
     {
         m->reset_flag |= SWERVE_RESET_RUNNING;
-        m->reset_flag |= (uint8_t)(lvl << 4);
-        m->reset_flag &= (uint8_t)~SWERVE_RESET_BACK;
-
-        if (lvl == 0u)
-        {
-            m->reset_flag |= SWERVE_RESET_DIRN;
-        }
-        else
-        {
-            m->reset_flag &= (uint8_t)~SWERVE_RESET_DIRN;
-        }
-
+        m->reset_flag |= (uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) << 4);
         m->target_angle_deg = 0.0f;
     }
 
-    if (m->reset_flag & SWERVE_RESET_DIRN)
-    {
-        m->target_angle_deg += m->reset_step_deg;
-    }
-    else
+    if (HAL_GPIO_ReadPin(m->key_port, m->key_pin))
     {
         m->target_angle_deg -= m->reset_step_deg;
     }
+    else
+    {
+        m->target_angle_deg += m->reset_step_deg;
+    }
 
-    if ((uint8_t)(lvl << 4) != (m->reset_flag & SWERVE_RESET_LAST_LVL))
+    if ((uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) << 4)
+        != (m->reset_flag & SWERVE_RESET_LAST_LVL))
     {
         /* 边沿这一瞬的编码器值 → 该轮真实朝向 = zero_bias_deg（每模块单独配） */
         m->zero_deg = m->steer.motor.Angle_DEG * m->dir_steer / m->steer_gear
@@ -162,20 +150,12 @@ uint8_t Swerve_Reset(SwerveModule_t *m)
     else if ((m->target_angle_deg >  SWERVE_RESET_LIMIT_DEG) ||
              (m->target_angle_deg < -SWERVE_RESET_LIMIT_DEG))
     {
-        if (!(m->reset_flag & SWERVE_RESET_BACK))
-        {
-            m->reset_flag |= SWERVE_RESET_BACK;
-            m->reset_flag ^= SWERVE_RESET_DIRN;
-        }
-        else
-        {
-            m->reset_flag |= SWERVE_RESET_FAIL;
-            m->target_angle_deg = m->angle_deg;
-        }
+        m->reset_flag |= SWERVE_RESET_FAIL;
+        m->target_angle_deg = m->angle_deg;
     }
 
     m->reset_flag = (uint8_t)((m->reset_flag & ~SWERVE_RESET_LAST_LVL)
-                              | (uint8_t)(lvl << 4));
+                              | (uint8_t)(HAL_GPIO_ReadPin(m->key_port, m->key_pin) << 4));
 
     return (m->reset_flag & SWERVE_RESET_DONE) ? 1u : 0u;
 }

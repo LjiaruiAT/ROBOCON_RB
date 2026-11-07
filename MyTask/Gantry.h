@@ -6,15 +6,16 @@
 #include "task.h"
 #include "motorEx.h"
 
-#define GANTRY_ARM_DELAY_MS 1000u
+#define GANTRY_ARM_DELAY_MS 5000u
 #define GANTRY_CMD_CURRENT  0.0f
-
+#define UP_CMD_ANGLE 5800.0f
 typedef enum
 {
     GANTRY_IDLE = 0,
     GANTRY_PB10,
     GANTRY_PB11,
-    GANTRY_BOTH
+    GANTRY_BOTH,
+	  GANTRY_DOWN
 } GantryState_t;
 
 extern Motor3508Ex_t g_gantry_3508;

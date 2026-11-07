@@ -1,5 +1,12 @@
+
 #include "Gantry.h"
 #include "Task_Init.h"
+#include <math.h>
+
+/* 回零判断参数 */
+#define GANTRY_ANGLE_TOLERANCE    2.0f
+#define GANTRY_SPEED_TOLERANCE    5.0f
+#define GANTRY_STABLE_COUNT      20u
 
 Motor3508Ex_t g_gantry_3508 =
 {
@@ -11,86 +18,141 @@ int16_t motorCurrentBuf[4] = {0};
 
 TaskHandle_t Gantry_Task_Handle;
 
+int flag_init = 0;
+int init_angle = 0;
+int target_up_angle;
+
 volatile GantryState_t g_gantry_state = GANTRY_IDLE;
-volatile uint8_t       g_gantry_armed = 0u;
-volatile uint32_t      g_gantry_ms_in_state = 0u;
+volatile uint8_t g_gantry_armed = 0u;
+volatile uint32_t g_gantry_ms_in_state = 0u;
+
+/* 1：正在回零，0：正常控制 */
+uint8_t gantry_return_flag = 0u;
+
+int test = 0;
+int back = 0;
+
 
 void Gantry_Task(void *pvParameters)
 {
-	TickType_t last_wake  = xTaskGetTickCount();
-	TickType_t enter_tick = 0;
-	uint8_t    pb10;
-	uint8_t    pb11;
+    TickType_t last_wake = xTaskGetTickCount();
+    TickType_t enter_tick = 0;
 
-	(void)pvParameters;
+    uint8_t pb10;
+    uint8_t pb11;
 
-	for (;;)
-	{
-		if (g_gantry_state == GANTRY_IDLE)
-		{
-			if (KEY_RISING_EDGE(Remote_Control.First, Remote_Control.Second, Left_Key_Up))
-			{
-				g_gantry_state = GANTRY_PB10;
-			}
-			else if (KEY_RISING_EDGE(Remote_Control.First, Remote_Control.Second, Left_Key_Down))
-			{
-				g_gantry_state = GANTRY_PB11;
-			}
-			else if (KEY_RISING_EDGE(Remote_Control.First, Remote_Control.Second, Left_Key_Right))
-			{
-				g_gantry_state = GANTRY_BOTH;
-			}
+    uint8_t return_stable_count = 0u;
 
-			if (g_gantry_state != GANTRY_IDLE)
-			{
-				enter_tick     = xTaskGetTickCount();
-				g_gantry_armed = 0u;
-				g_gantry_3508.pos_pid.error_inter = 0.0f;
-				g_gantry_3508.vel_pid.error_inter = 0.0f;
-			}
-		}
-		else if (KEY_RISING_EDGE(Remote_Control.First, Remote_Control.Second, Right_Key_Left))
-		{
-			g_gantry_state = GANTRY_IDLE;
-			g_gantry_armed = 0u;
-			motorCurrentBuf[0] = 0;
-			MotorSend(&hcan1, 0x1FF, motorCurrentBuf);
-		}
+    (void)pvParameters;
 
-		pb10 = ((g_gantry_state == GANTRY_PB10) ||
-		        (g_gantry_state == GANTRY_BOTH)) ? 1u : 0u;
-		pb11 = ((g_gantry_state == GANTRY_PB11) ||
-		        (g_gantry_state == GANTRY_BOTH)) ? 1u : 0u;
+    g_gantry_3508.pos_pid.Kp = 22.1f;
+    g_gantry_3508.pos_pid.Ki = 0.0f;
+    g_gantry_3508.pos_pid.Kd = 0.0f;
+    g_gantry_3508.pos_pid.limit = 6000.0f;
+    g_gantry_3508.pos_pid.output_limit = 6000.0f;
 
-		GPIOB->BSRR = (pb10 != 0u ? (uint32_t)GPIO_PIN_10 : ((uint32_t)GPIO_PIN_10 << 16)) |
-		              (pb11 != 0u ? (uint32_t)GPIO_PIN_11 : ((uint32_t)GPIO_PIN_11 << 16));
+    g_gantry_3508.vel_pid.Kp = 8.0f;
+    g_gantry_3508.vel_pid.Ki = 0.0f;
+    g_gantry_3508.vel_pid.Kd = 0.0f;
+    g_gantry_3508.vel_pid.limit = 16384.0f;
+    g_gantry_3508.vel_pid.output_limit = 10000.0f;
 
-		if (g_gantry_state == GANTRY_IDLE)
-		{
-			g_gantry_ms_in_state = 0u;
-		}
-		else
-		{
-			g_gantry_ms_in_state = (uint32_t)(xTaskGetTickCount() - enter_tick) *
-			                       (uint32_t)portTICK_PERIOD_MS;
+    TickType_t now;
+    TickType_t state_start_tick = last_wake;
+    for (;;)
+    {
+now = xTaskGetTickCount();
+        if (flag_init == 0)
+        {
+            init_angle = g_gantry_3508.motor.Angle_DEG;
+            target_up_angle = init_angle + UP_CMD_ANGLE;
 
-			if ((g_gantry_armed == 0u) &&
-			    (g_gantry_ms_in_state >= GANTRY_ARM_DELAY_MS))
-			{
-				g_gantry_armed = 1u;
-			}
-		}
+            flag_init = 1;
+        }
+            if (KEY_RISING_EDGE(Remote_Control.First,Remote_Control.Second,Left_Key_Up) || test == 1)
+            {
+							    state_start_tick = now;
 
-		if (g_gantry_armed != 0u)
-		{
-			PID_Control2(0.0f, 0.0f, &g_gantry_3508.pos_pid);
-			PID_Control2(0.0f, 0.0f, &g_gantry_3508.vel_pid);
+                g_gantry_state = GANTRY_PB10;
+                test = 0;
+            }
+            else if (KEY_RISING_EDGE(Remote_Control.First,Remote_Control.Second,Left_Key_Down))
+            {
+							    state_start_tick = now;
 
-			motorCurrentBuf[0] =
-				(int16_t)(g_gantry_3508.vel_pid.pid_out + GANTRY_CMD_CURRENT);
-			MotorSend(&hcan1, 0x1FF, motorCurrentBuf);
-		}
+                g_gantry_state = GANTRY_PB11;
+            }
+            else if (KEY_RISING_EDGE(Remote_Control.First,Remote_Control.Second,Left_Key_Right))
+            {
+							    state_start_tick = now;
 
-		vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(2));
-	}
+                g_gantry_state = GANTRY_BOTH;
+            }
+            else if (KEY_RISING_EDGE(Remote_Control.First,Remote_Control.Second,Right_Key_Left) || back == 1)
+            {
+							    state_start_tick = now;
+back = 0;
+                g_gantry_state = GANTRY_DOWN;
+            }
+						switch (g_gantry_state)
+{
+    case GANTRY_IDLE:
+        break;
+
+    case GANTRY_PB10:
+        if ((now - state_start_tick) < pdMS_TO_TICKS(1500))
+        {
+            PID_Control2(g_gantry_3508.motor.Angle_DEG,target_up_angle,&g_gantry_3508.pos_pid);
+            PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
+            motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
+        }
+        else
+        {
+            
+            g_gantry_state = GANTRY_IDLE;
+        }
+        break;
+
+    case GANTRY_PB11:
+        if ((now - state_start_tick) < pdMS_TO_TICKS(1500))
+        {
+            PID_Control2(g_gantry_3508.motor.Angle_DEG,target_up_angle,&g_gantry_3508.pos_pid);
+            PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
+            motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
+        }
+        else
+        {
+            g_gantry_state = GANTRY_IDLE;
+        }
+        break;
+
+    case GANTRY_BOTH:
+        if ((now - state_start_tick) < pdMS_TO_TICKS(1500))
+        {
+            PID_Control2(g_gantry_3508.motor.Angle_DEG,target_up_angle,&g_gantry_3508.pos_pid);
+            PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
+            motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
+        }
+        else
+        {    
+            g_gantry_state = GANTRY_IDLE;
+        }
+        break;
+
+    case GANTRY_DOWN:
+			        if ((now - state_start_tick) < pdMS_TO_TICKS(1500))
+        {
+            PID_Control2(g_gantry_3508.motor.Angle_DEG,init_angle,&g_gantry_3508.pos_pid);
+            PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
+            motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
+        }
+        else
+        {    motorCurrentBuf[0] = 0;
+            g_gantry_state = GANTRY_IDLE;
+        }
+        break;
+}
+        MotorSend(&hcan1, 0x1FF, motorCurrentBuf);
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(2));
+    }
 }
