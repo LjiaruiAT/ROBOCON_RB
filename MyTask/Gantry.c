@@ -26,12 +26,11 @@ volatile GantryState_t g_gantry_state = GANTRY_IDLE;
 volatile uint8_t g_gantry_armed = 0u;
 volatile uint32_t g_gantry_ms_in_state = 0u;
 
-/* 1：正在回零，0：正常控制 */
 uint8_t gantry_return_flag = 0u;
 
 int test = 0;
 int back = 0;
-
+bool up_flag = 0;
 
 void Gantry_Task(void *pvParameters)
 {
@@ -102,13 +101,12 @@ back = 0;
     case GANTRY_PB10:
         if ((now - state_start_tick) < pdMS_TO_TICKS(1500))
         {
-            PID_Control2(g_gantry_3508.motor.Angle_DEG,target_up_angle,&g_gantry_3508.pos_pid);
-            PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
-            motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
+HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET); 
         }
         else
         {
-            
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET); 
+            up_flag = 1;
             g_gantry_state = GANTRY_IDLE;
         }
         break;
@@ -116,12 +114,12 @@ back = 0;
     case GANTRY_PB11:
         if ((now - state_start_tick) < pdMS_TO_TICKS(1500))
         {
-            PID_Control2(g_gantry_3508.motor.Angle_DEG,target_up_angle,&g_gantry_3508.pos_pid);
-            PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
-            motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET); 
         }
         else
         {
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET); 
+		        up_flag = 1;
             g_gantry_state = GANTRY_IDLE;
         }
         break;
@@ -129,12 +127,14 @@ back = 0;
     case GANTRY_BOTH:
         if ((now - state_start_tick) < pdMS_TO_TICKS(1500))
         {
-            PID_Control2(g_gantry_3508.motor.Angle_DEG,target_up_angle,&g_gantry_3508.pos_pid);
-            PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
-            motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET); 
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_SET); 
         }
         else
-        {    
+        {     
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET); 
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET); 					
+				   	up_flag = 1;
             g_gantry_state = GANTRY_IDLE;
         }
         break;
@@ -142,7 +142,7 @@ back = 0;
     case GANTRY_DOWN:
 			        if ((now - state_start_tick) < pdMS_TO_TICKS(1500))
         {
-            PID_Control2(g_gantry_3508.motor.Angle_DEG,init_angle,&g_gantry_3508.pos_pid);
+            PID_Control2(g_gantry_3508.motor.Angle_DEG,target_up_angle,&g_gantry_3508.pos_pid);
             PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
             motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
         }
@@ -151,6 +151,17 @@ back = 0;
             g_gantry_state = GANTRY_IDLE;
         }
         break;
+}
+if(up_flag == 1)
+{
+
+            PID_Control2(g_gantry_3508.motor.Angle_DEG,init_angle,&g_gantry_3508.pos_pid);
+            PID_Control2(g_gantry_3508.motor.Speed,g_gantry_3508.pos_pid.pid_out,&g_gantry_3508.vel_pid);
+            motorCurrentBuf[0] =(int16_t)g_gantry_3508.vel_pid.pid_out;
+	if(g_gantry_3508.motor.Angle_DEG>=init_angle)
+	{
+		up_flag = 0;
+	}
 }
         MotorSend(&hcan1, 0x1FF, motorCurrentBuf);
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(2));
