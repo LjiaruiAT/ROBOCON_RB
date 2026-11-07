@@ -27,7 +27,20 @@ Project File Date:  11/07/2026
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 7 (build 960)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'BR'
-"BR\BR.axf" - 0 Error(s), 0 Warning(s).
+compiling Gantry.c...
+..\MyTask\Gantry.c(41): warning:  #177-D: variable "enter_tick"  was declared but never referenced
+      TickType_t enter_tick = 0;
+..\MyTask\Gantry.c(43): warning:  #177-D: variable "pb10"  was declared but never referenced
+      uint8_t pb10;
+..\MyTask\Gantry.c(44): warning:  #177-D: variable "pb11"  was declared but never referenced
+      uint8_t pb11;
+..\MyTask\Gantry.c(46): warning:  #177-D: variable "return_stable_count"  was declared but never referenced
+      uint8_t return_stable_count = 0u;
+..\MyTask\Gantry.c: 4 warnings, 0 errors
+linking...
+Program Size: Code=46396 RO-data=680 RW-data=1032 ZI-data=42488  
+FromELF: creating hex file...
+"BR\BR.axf" - 0 Error(s), 4 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -50,7 +63,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE@6.2.0
       Include file:  CMSIS/Core/Include/tz_context.h
-Build Time Elapsed:  00:00:02
+Build Time Elapsed:  00:00:05
 </pre>
 </body>
 </html>
