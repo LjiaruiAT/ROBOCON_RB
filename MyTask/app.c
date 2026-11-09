@@ -175,7 +175,7 @@ static void Swerve_Config(void)
 		m->steer.vel_pid.output_limit = 10000.0f;
 
 		m->drive_pid.Kp = 0.005f;     
-		m->drive_pid.Ki = 0.0002f;
+		m->drive_pid.Ki = 0.0001f;
 		m->drive_pid.Kd = 0.0f;
 		m->drive_pid.limit = 10000.0f;   /* 积分权限 = 0.0005×10000 = 5 A，原来是 25 A 过大 */
 		m->drive_pid.output_limit = 30.0f;

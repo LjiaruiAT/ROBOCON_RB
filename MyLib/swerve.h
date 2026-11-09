@@ -21,7 +21,7 @@
 #define SWERVE_RESET_BACK       0x01u   /*!< 扫描已掉头一次 */
 #define SWERVE_RESET_DIRN       0x02u   /*!< 扫描方向：1 正向、0 反向 */
 #define SWERVE_RESET_LIMIT_DEG  180.0f  /*!< 复位扫描最大行程（防止绕圈绞线） */
-#define SWERVE_STEER_LIMIT_DEG   95.0f  /*!< 正常行驶时舵向目标绝对上限（硬软限位） */
+#define SWERVE_STEER_LIMIT_DEG   120.0f  /*!< 正常行驶时舵向目标绝对上限（硬软限位） */
 
 /**
  * @brief 单个舵轮模块（一个实例 = 一个舵轮）

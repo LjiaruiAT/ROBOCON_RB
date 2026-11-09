@@ -1,6 +1,6 @@
 Dependencies for Project 'BR', Target 'BR': (DO NOT MODIFY !)
 CompilerVersion: 5060960::V5.06 update 7 (build 960)::.\ARMCC
-F (startup_stm32f407xx.s)(0x6AD02395)(--cpu Cortex-M4.fp.sp -g --apcs=interwork -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include--pd "__UVISION_VERSION SETA 543" --pd "STM32F407xx SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32f407xx.lst --xref -o br\startup_stm32f407xx.o --depend br\startup_stm32f407xx.d)
+F (startup_stm32f407xx.s)(0x6AEEA516)(--cpu Cortex-M4.fp.sp -g --apcs=interwork -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include--pd "__UVISION_VERSION SETA 543" --pd "STM32F407xx SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32f407xx.lst --xref -o br\startup_stm32f407xx.o --depend br\startup_stm32f407xx.d)
 F (../Core/Src/main.c)(0x6AE09740)(--c99 -c --cpu Cortex-M4.fp.sp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\MyTask -I ..\MyLib -I ..\Remote_control-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o br\main.o --omf_browse br\main.crf --depend br\main.d)
 I (../Core/Inc/main.h)(0x6AD02124)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x6928309F)
@@ -76,7 +76,7 @@ I (C:\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x5E8E3CC2)
 I (..\Remote_control\comm_stm32_hal_middle.h)(0x6A349870)
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h)(0x69283068)
 I (..\MyLib\VESC.h)(0x6AE9C76E)
-I (..\MyLib\swerve.h)(0x6AEC6661)
+I (..\MyLib\swerve.h)(0x6AF1A4B5)
 I (..\MyTask\usb_upper.h)(0x6AE9C7F4)
 F (../Core/Src/gpio.c)(0x6AE6A995)(--c99 -c --cpu Cortex-M4.fp.sp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\MyTask -I ..\MyLib -I ..\Remote_control-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o br\gpio.o --omf_browse br\gpio.crf --depend br\gpio.d)
 I (../Core/Inc/gpio.h)(0x6AD02121)
@@ -1956,7 +1956,7 @@ I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd.h)(0x6928309F)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h)(0x6928309F)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h)(0x6928309F)
 F (..\MyLib\swerve.c)(0x6AED5B98)(--c99 -c --cpu Cortex-M4.fp.sp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\MyTask -I ..\MyLib -I ..\Remote_control-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o br\swerve.o --omf_browse br\swerve.crf --depend br\swerve.d)
-I (..\MyLib\swerve.h)(0x6AEC6661)
+I (..\MyLib\swerve.h)(0x6AF1A4B5)
 I (..\MyLib\motor.h)(0x6A313248)
 I (..\MyLib\RMLibHead.h)(0x6A313248)
 I (C:\Keil_v5\ARM\ARMCC\include\string.h)(0x5E8E3CC2)
@@ -2118,10 +2118,10 @@ I (C:\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x5E8E3CC2)
 I (..\Remote_control\comm_stm32_hal_middle.h)(0x6A349870)
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h)(0x69283068)
 I (..\MyLib\VESC.h)(0x6AE9C76E)
-I (..\MyLib\swerve.h)(0x6AEC6661)
+I (..\MyLib\swerve.h)(0x6AF1A4B5)
 F (..\MyTask\usb_upper.h)(0x6AE9C7F4)()
 F (..\MyTask\config.h)(0x6AEE0CAD)()
-F (..\MyTask\app.c)(0x6AEE1382)(--c99 -c --cpu Cortex-M4.fp.sp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\MyTask -I ..\MyLib -I ..\Remote_control-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o br\app.o --omf_browse br\app.crf --depend br\app.d)
+F (..\MyTask\app.c)(0x6AF02E3E)(--c99 -c --cpu Cortex-M4.fp.sp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\MyTask -I ..\MyLib -I ..\Remote_control-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o br\app.o --omf_browse br\app.crf --depend br\app.d)
 I (..\MyTask\app.h)(0x6AE1F236)
 I (..\MyTask\Task_Init.h)(0x6AE34BEF)
 I (..\MyTask\config.h)(0x6AEE0CAD)
@@ -2189,7 +2189,7 @@ I (C:\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x5E8E3CC2)
 I (..\Remote_control\comm_stm32_hal_middle.h)(0x6A349870)
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h)(0x69283068)
 I (..\MyLib\VESC.h)(0x6AE9C76E)
-I (..\MyLib\swerve.h)(0x6AEC6661)
+I (..\MyLib\swerve.h)(0x6AF1A4B5)
 I (..\MyTask\usb_upper.h)(0x6AE9C7F4)
 I (..\MyTask\yaw_hold.h)(0x6AEE13CB)
 I (..\MyTask\Gantry.h)(0x6AEE6653)
@@ -2262,7 +2262,7 @@ I (..\Remote_control\comm_stm32_hal_middle.h)(0x6A349870)
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h)(0x69283068)
 I (..\MyLib\VESC.h)(0x6AE9C76E)
 I (..\MyTask\app.h)(0x6AE1F236)
-I (..\MyLib\swerve.h)(0x6AEC6661)
+I (..\MyLib\swerve.h)(0x6AF1A4B5)
 I (..\MyTask\usb_upper.h)(0x6AE9C7F4)
 I (..\MyTask\Gantry.h)(0x6AEE6653)
 F (..\MyTask\Task_Init.h)(0x6AE34BEF)()
@@ -2335,8 +2335,8 @@ I (C:\Keil_v5\ARM\ARMCC\include\stdbool.h)(0x5E8E3CC2)
 I (..\Remote_control\comm_stm32_hal_middle.h)(0x6A349870)
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h)(0x69283068)
 I (..\MyLib\VESC.h)(0x6AE9C76E)
-I (..\MyLib\swerve.h)(0x6AEC6661)
-F (..\MyTask\Gantry.c)(0x6AEE9AD1)(--c99 -c --cpu Cortex-M4.fp.sp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\MyTask -I ..\MyLib -I ..\Remote_control-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o br\gantry.o --omf_browse br\gantry.crf --depend br\gantry.d)
+I (..\MyLib\swerve.h)(0x6AF1A4B5)
+F (..\MyTask\Gantry.c)(0x6AEEA516)(--c99 -c --cpu Cortex-M4.fp.sp -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../USB_DEVICE/App -I ../USB_DEVICE/Target -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\MyTask -I ..\MyLib -I ..\Remote_control-I.\RTE\_BR-IC:\Users\lenovo\AppData\Local\Arm\Packs\ARM\CMSIS\6.3.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o br\gantry.o --omf_browse br\gantry.crf --depend br\gantry.d)
 I (..\MyTask\Gantry.h)(0x6AEE6653)
 I (../Core/Inc/main.h)(0x6AD02124)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x6928309F)

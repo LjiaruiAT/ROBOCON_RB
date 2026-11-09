@@ -450,7 +450,7 @@ ARM Macro Assembler    Page 7
   165 00000188         
   166 00000188                 AREA             |.text|, CODE, READONLY
   167 00000000         
-  168 00000000         ; Reset handler
+  168 00000000         ; Reset handler 
   169 00000000         Reset_Handler
                                PROC
 
