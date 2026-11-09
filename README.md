@@ -7,7 +7,7 @@ STM32F407 + FreeRTOS，四舵轮全向底盘。支持遥控与上位机（ROS 2�
 | 项 | 说明 |
 |---|---|
 | 主控 | STM32F407VETx，168 MHz |
-| 转向 | M2006 + 光电门找零，CAN1，电流帧 `0x200`，反馈 `0x201~0x204` |
+| 转向 | M2006 + C610 电调 + 光电门找零，CAN1，电流帧 `0x200`，反馈 `0x201~0x204` |
 | 行走 | VESC（5055 + 3.333 行星减速 + 96 mm 轮），CAN2，电流控制 |
 | 姿态 | WT901，UART4（PC10 TX / PC11 RX），115200，DMA + IDLE |
 | 遥控 | 自定义协议，UART5（PC12 / PD2） |
@@ -38,7 +38,7 @@ Core/           CubeMX 生成
                     │
         90° 最优角翻转 + cos³ 余弦补偿
                     │
-              转向环 / 轮速环（各 2 ms）
+              转向环 / 轮速环（1 ms 周期）
                     │
             CAN1 M2006 电流 / CAN2 VESC 电流
                     │
@@ -48,12 +48,14 @@ Core/           CubeMX 生成
 三个闭环嵌套：轮速环（单轮）、转向环（轮向）、角速度环（整车偏航）。
 **角速度环为内环，闭环 ω 而非航向角**，因此不与上位机的航向闭环冲突。
 
+**周期说明**：底盘任务按 `CHASSIS_TASK_PERIOD_MS = 1` 调度。四路 M2006 转向电流每周期全量下发（共用 `0x200` 帧）；四路 VESC 行走电流分两相位交替、每周期发 2 路，因此**单轮行走电流更新周期为 2 ms**。
+
 ## 关键参数（`MyTask/config.h`）
 
 | 宏 | 值 | 含义 |
 |---|---|---|
-| `CHASSIS_TASK_PERIOD_MS` | 2 | 控制周期 |
-| `CHASSIS_VEL_MAX` / `CHASSIS_OMEGA_MAX` | 2 m/s / 9 rad/s | 遥控限幅 |
+| `CHASSIS_TASK_PERIOD_MS` | 1 | 控制周期 (ms) |
+| `CHASSIS_VEL_MAX` / `CHASSIS_OMEGA_MAX` | 2 m/s / 4.5 rad/s | 遥控限幅 |
 | `HOST_VX/VY/OMEGA_LIMIT` | 3 / 3 / 5 | 上位机协议硬闸 |
 | `SWERVE_STEER_CUR_LIMIT` | 10000 | M2006 电流限幅 |
 | `SWERVE_VESC_CUR_LIMIT` | 20 A | VESC 电流限幅 |
