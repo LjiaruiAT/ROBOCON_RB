@@ -122,8 +122,8 @@ virtualFolder:
         - path: ../MyTask/Task_Init.c
         - path: ../MyTask/Task_Init.h
         - path: ../MyTask/yaw_hold.c
-        - path: ../MyTask/yaw_hold.h
         - path: ../MyTask/Gantry.c
+        - path: ../MyTask/yaw_hold.h
         - path: ../MyTask/Gantry.h
       folders: []
     - name: Remote_control

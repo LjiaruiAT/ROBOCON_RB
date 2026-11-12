@@ -2,18 +2,18 @@
 #define REMOTE_FIGER       1647.0f
 #define MAX_ROBOT_VEL      4.0f               /* 最大线速度 (m/s) */
 #define MAX_ROBOT_OMEGA    (PI * 1.8f)        /* 最大角速度 (rad/s) */
-#define LENGTH             0.457f             /* 轮心到中心的距离 (m) */
-#define WHEEL_RADIUS       0.048f             /* 轮子半径 (m)：直径 96mm */
+#define LENGTH             0.2995f            /* 轮心到中心的距离 (m)：423.5mm 正方形轮距的半对角线 */
+#define WHEEL_RADIUS       0.052f             /* 轮子半径 (m)：直径 104mm */
 #define ANGLE2RAD(x)       ((x) * PI / 180.0f)
 #define KEY_RISING_EDGE(cur, last, field)  ((cur.field == 1) && (last.field == 0))
-#define VESC_POLE_PAIRS    14                  /* 电机极对数（磁铁片数 / 2） */
-#define VESC_POLE_MAGNETS  14                 /* 磁铁片数：VESC Tool 里 Motor Poles 填这个 */
+#define VESC_POLE_PAIRS    21                  /* 电机极对数（磁铁片数 / 2） */
+#define VESC_POLE_MAGNETS  42                 /* 磁铁片数：VESC Tool 里 Motor Poles 填这个 */
 
-/* ---------------- 行走电机换算（5055 + 行星减速 + 96mm 轮） ---------------- */
-#define DRIVE_GEAR_RATIO   3.3333f            /* 行星减速比：电机转 3.333 圈 = 轮子转 1 圈 */
-#define DRIVE_WHEEL_DIA    0.096f             /* 轮子直径 (m) */
+/* ---------------- 行走电机换算（VESC 直驱 + 104mm 轮，无减速） ---------------- */
+#define DRIVE_GEAR_RATIO   1.0f               /* 无行星减速：电机与轮子 1:1 */
+#define DRIVE_WHEEL_DIA    0.104f             /* 轮子直径 (m) */
 
-/* ERPM/(m/s) = 极对数 × 减速比 × 60 / (π × 轮径) ≈ 4641.9*2  */
+/* ERPM/(m/s) = 极对数 × 减速比 × 60 / (π × 轮径) ≈ 3856.4 (无减速) */
 #define DRIVE_ERPM_PER_MPS ((VESC_POLE_PAIRS * DRIVE_GEAR_RATIO * 60.0f / (PI * DRIVE_WHEEL_DIA)))
 #define UP_VOLLEY_MOTOR_MS      1000.0f
 

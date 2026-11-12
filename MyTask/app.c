@@ -122,8 +122,8 @@ static void Swerve_GpioInit(void)
 
 static void Swerve_Config(void)
 {
-	static const float pos_x[SWERVE_COUNT] = {  0.215f,  0.215f, -0.215f, -0.215f };//up_left is +
-	static const float pos_y[SWERVE_COUNT] = {  0.225f, -0.225f, -0.225f,  0.225f };
+	static const float pos_x[SWERVE_COUNT] = {  0.21175f,  0.21175f, -0.21175f, -0.21175f };//up_left is + ; 轮距 423.5mm 正方形
+	static const float pos_y[SWERVE_COUNT] = {  0.21175f, -0.21175f, -0.21175f,  0.21175f };
 
 	static const uint32_t steer_id[SWERVE_COUNT] = { 0x201, 0x202, 0x203, 0x204 };
 	static const uint32_t drive_id[SWERVE_COUNT] = { 0x01, 0x02, 0x03, 0x04 };
@@ -174,8 +174,8 @@ static void Swerve_Config(void)
 		m->steer.vel_pid.limit = 5000.0f;
 		m->steer.vel_pid.output_limit = 10000.0f;
 
-		m->drive_pid.Kp = 0.005f;     
-		m->drive_pid.Ki = 0.0001f;
+		m->drive_pid.Kp = 0.05f;     
+		m->drive_pid.Ki = 0.1f;
 		m->drive_pid.Kd = 0.0f;
 		m->drive_pid.limit = 10000.0f;   /* 积分权限 = 0.0005×10000 = 5 A，原来是 25 A 过大 */
 		m->drive_pid.output_limit = 30.0f;
