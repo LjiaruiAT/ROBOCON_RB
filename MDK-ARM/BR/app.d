@@ -68,6 +68,7 @@ br\app.o: ..\Remote_control\comm_stm32_hal_middle.h
 br\app.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
 br\app.o: ..\MyLib\VESC.h
 br\app.o: ..\MyLib\swerve.h
+br\app.o: ..\MyTask\swerve_config.h
 br\app.o: ..\MyTask\usb_upper.h
 br\app.o: ..\MyTask\yaw_hold.h
 br\app.o: ..\MyTask\Gantry.h

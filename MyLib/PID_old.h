@@ -67,12 +67,21 @@ typedef struct {
 } PID_ADD2;
 
 /**
- * @brief 标准位置式PID
+ * @brief 标准位置式PID（2 ms 固定周期版，供 Gantry 等 2 ms 任务使用）
  * @param[in] current 实际值
  * @param[in] expected 期望值
  * @param[in] parameter PID参数
  */
 void PID_Control2(float current, float expected, PID2 *data);
+
+/**
+ * @brief 标准位置式PID（显式指定周期）
+ * @param[in] current  实际值
+ * @param[in] expected 期望值
+ * @param[in] parameter PID参数
+ * @param[in] dt_s     本环真实周期 (s)，必须等于调用处任务周期
+ */
+void PID_ControlDt(float current, float expected, PID2 *data, float dt_s);
 
 
 

@@ -32,6 +32,17 @@
 #define CHASSIS_USE_TURN_GATE     0         /* 1 = 转向未到位就清四轮驱动（硬门控）
                                                0 = 关闭，改用 swerve.c 里的三阶余弦补偿 */
 
+/* ---------------- 行走速度环调参（单位：rpm / A，dt 见 DRIVE_PID_DT_S） ----------------
+
+ */
+#define CHASSIS_PID_DT_S     (CHASSIS_TASK_PERIOD_MS * 0.001f)  /* 底盘所有 PID 的真实周期 */
+#define DRIVE_PID_DT_S       CHASSIS_PID_DT_S
+#define DRIVE_PID_KP         0.05f    /* A/rpm   误差 200 rpm → 10 A */
+#define DRIVE_PID_KI         0.15f    /* A/(rpm·s) */
+#define DRIVE_PID_KD         0.0f     /* rpm 反馈有量化噪声，一般不启用 */
+#define DRIVE_FF_A_PER_RPM   0.0f     /* 前馈 A/rpm：填 1/(实测 rpm每A) 可基本抹掉稳态误差 */
+#define DRIVE_PID_DB_RPM     2.0f     /* 误差死区 (rpm)：抑制静止抖动，0 = 关闭 */
+
 /* ---------------- 上位机 USB 链路（protocol.md v1.4） ---------------- */
 #define HOST_VX_LIMIT       3.0f    /* 协议硬闸：vx 前向 (m/s) */
 #define HOST_VY_LIMIT       3.0f    /* 协议硬闸：vy 左向 (m/s) */

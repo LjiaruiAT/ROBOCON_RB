@@ -794,6 +794,16 @@
               <FileType>5</FileType>
               <FilePath>..\MyTask\Gantry.h</FilePath>
             </File>
+            <File>
+              <FileName>swerve_config.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MyTask\swerve_config.c</FilePath>
+            </File>
+            <File>
+              <FileName>swerve_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\MyTask\swerve_config.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -46,3 +46,13 @@ br\swerve.o: ..\MyLib\motorEx.h
 br\swerve.o: ..\MyLib\pid_old.h
 br\swerve.o: ..\MyLib\VESC.h
 br\swerve.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
+br\swerve.o: ..\MyTask\config.h
+br\swerve.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+br\swerve.o: ../Core/Inc/FreeRTOSConfig.h
+br\swerve.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+br\swerve.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+br\swerve.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+br\swerve.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+br\swerve.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+br\swerve.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+br\swerve.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
